@@ -323,3 +323,4 @@ export function RoleKpiSection({ roleSlug = 'owner', roleName = 'Owner' }: RoleK
     </div>
   );
 }
+

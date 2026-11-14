@@ -30,3 +30,4 @@ export function CardTitle({ className, children, ...props }: React.HTMLAttribute
     </h3>
   );
 }
+

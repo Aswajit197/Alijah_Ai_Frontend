@@ -100,3 +100,4 @@ export function clearAuthSession() {
 export function isAuthenticated(): boolean {
   return !!getAuthToken();
 }
+
