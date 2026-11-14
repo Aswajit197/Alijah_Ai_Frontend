@@ -154,9 +154,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 onClick={onClose}
                 className={cn(
-                  'flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
+                  'flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-[0.98]',
                   isActive
                     ? 'bg-primary/15 text-white border border-primary/40 shadow-sm shadow-primary-glow/20'
                     : 'text-muted hover:text-white hover:bg-surface-elevated'

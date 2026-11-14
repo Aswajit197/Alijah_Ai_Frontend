@@ -23,7 +23,6 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
-  const [tenantSlug, setTenantSlug] = useState('desert-air');
   const [email, setEmail] = useState('owner@pashupat.cloud');
   const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,9 +46,8 @@ function LoginForm() {
       const result = await apiRequest<{ token: string; user: CompanyUser }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          email: loginEmail,
+          email: loginEmail.toLowerCase().trim(),
           password: password,
-          tenantSlug: tenantSlug || undefined,
         }),
       });
 
@@ -104,16 +102,7 @@ function LoginForm() {
           )}
 
           <form onSubmit={(e) => handleSubmit(e)} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Company Code / Slug"
-                required
-                value={tenantSlug}
-                onChange={(e) => setTenantSlug(e.target.value)}
-                placeholder="desert-air"
-                helper="Your company identifier"
-              />
-
+            <div>
               <Input
                 label="Work Email"
                 type="email"
