@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, Building2, Bell, Shield, LogOut, ExternalLink, Sparkles } from 'lucide-react';
+import { Menu, Building2, Bell, Shield, LogOut, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -80,16 +80,6 @@ export function Header({ onMenuClick }: HeaderProps) {
             </div>
           </div>
         )}
-
-        {/* Quick Demo Switcher Link */}
-        <Link
-          href="/login"
-          title="Switch role in Demo Mode"
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-surface-elevated hover:bg-border/60 border border-border transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-ai" />
-          <span>Switch Role</span>
-        </Link>
 
         {/* Notification Bell */}
         <button
