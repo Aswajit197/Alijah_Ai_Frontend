@@ -635,15 +635,28 @@ export default function CustomersPage() {
                     {selectedCustomer.jobs.map((j: any) => (
                       <div
                         key={j.id}
-                        className="p-3 rounded-xl bg-surface border border-border flex items-center justify-between text-xs"
+                        className="p-3 rounded-xl bg-surface border border-border flex items-center justify-between text-xs hover:border-border-hover transition-colors"
                       >
                         <div>
                           <p className="font-semibold text-white">{j.title}</p>
                           <p className="text-[11px] text-subtle mt-0.5">
-                            {new Date(j.createdAt).toLocaleDateString()} · Status: {j.status}
+                            {new Date(j.createdAt).toLocaleDateString()} · Status:{' '}
+                            <span className="font-medium text-emerald-400">{j.status}</span>
                           </p>
                         </div>
-                        <Badge variant="neutral">{j.priority}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="neutral">{j.priority}</Badge>
+                          <a
+                            href={`/track/${j.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg bg-surface-elevated hover:bg-slate-700 text-subtle hover:text-white transition-colors flex items-center gap-1 text-[11px]"
+                            title="View Customer Live Tracking"
+                          >
+                            <ExternalLink className="w-3 h-3 text-sky-400" />
+                            <span>Track</span>
+                          </a>
+                        </div>
                       </div>
                     ))}
                   </div>

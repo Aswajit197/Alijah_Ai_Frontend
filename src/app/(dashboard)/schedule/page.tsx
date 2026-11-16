@@ -561,14 +561,27 @@ export default function SchedulePage() {
                               </span>
                             )}
 
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-xs h-7 text-subtle hover:text-white"
-                              onClick={() => openDispatchDialog(j)}
-                            >
-                              Edit
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={`/track/${j.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-surface-elevated hover:bg-slate-700 text-subtle hover:text-white transition-colors flex items-center gap-1 text-[11px]"
+                                title="Customer Live Tracking View"
+                              >
+                                <ExternalLink className="w-3 h-3 text-sky-400" />
+                                <span>Track</span>
+                              </a>
+
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs h-7 text-subtle hover:text-white"
+                                onClick={() => openDispatchDialog(j)}
+                              >
+                                Edit
+                              </Button>
+                            </div>
                           </div>
                         </Card>
                       );

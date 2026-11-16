@@ -227,6 +227,23 @@ export default function TechPortalPage() {
             </div>
           </div>
 
+          {/* Customer Live Tracking Link */}
+          <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between text-xs">
+            <div>
+              <span className="font-semibold text-sky-200">Customer Live Tracking Link</span>
+              <p className="text-[11px] text-sky-300/80">Homeowner / facility manager tracking view</p>
+            </div>
+            <a
+              href={`/track/${job.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-500/30 font-semibold flex items-center gap-1.5 text-xs transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Customer View</span>
+            </a>
+          </div>
+
           {/* Issue & Diagnostic Notes */}
           <div className="space-y-2 text-xs">
             <span className="font-bold uppercase tracking-wider text-muted text-[10px]">
