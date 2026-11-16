@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   UserPlus,
@@ -67,6 +68,7 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -664,9 +666,7 @@ export default function CustomersPage() {
               <Button
                 size="sm"
                 className="bg-primary hover:bg-primary-hover shadow-lg shadow-primary-glow"
-                onClick={() => {
-                  alert(`Ready to book dispatch for ${selectedCustomer.name}! This will connect directly to the next Milestone: Scheduling & Dispatch.`);
-                }}
+                onClick={() => router.push('/schedule')}
               >
                 <Plus className="w-4 h-4 mr-1.5" />
                 Book Work Order
