@@ -42,6 +42,7 @@ interface CustomerOption {
   id: string;
   name: string;
   companyName?: string;
+  customerType?: string;
   phone: string;
   address?: string;
   city?: string;
@@ -120,6 +121,10 @@ export default function SchedulePage() {
   const [jobAmount, setJobAmount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Searchable Customer State for 1000s of records
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+
   // Load jobs, technicians & customers
   const loadData = async () => {
     setIsLoading(true);
@@ -146,6 +151,20 @@ export default function SchedulePage() {
 
   // Selected customer for modal
   const activeCustomer = customers.find((c) => c.id === selectedCustId);
+
+  // Fast filtered customers for searchable combobox (supports 1000s of CRM records)
+  const filteredCustomers = customers
+    .filter((c) => {
+      if (!customerSearchQuery.trim()) return true;
+      const q = customerSearchQuery.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.companyName && c.companyName.toLowerCase().includes(q)) ||
+        c.phone.toLowerCase().includes(q) ||
+        (c.address && c.address.toLowerCase().includes(q))
+      );
+    })
+    .slice(0, 10);
 
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +261,8 @@ export default function SchedulePage() {
     setJobReportedIssue('');
     setJobNotes('');
     setJobAmount(0);
+    setCustomerSearchQuery('');
+    setIsCustomerDropdownOpen(false);
   };
 
   const openDispatchDialog = (job: Job) => {
@@ -344,6 +365,17 @@ export default function SchedulePage() {
               Today
             </button>
           </div>
+
+          <a
+            href="/book"
+            target="_blank"
+            rel="noreferrer"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface-elevated hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-border transition-colors"
+            title="Open Public Customer Self-Service Booking Page"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+            <span>Customer Booking Page</span>
+          </a>
 
           <Button
             onClick={() => {
@@ -603,27 +635,113 @@ export default function SchedulePage() {
         maxWidth="xl"
       >
         <form onSubmit={handleCreateJob} className="space-y-4">
-          {/* Customer Selection */}
-          <div>
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-              Select Customer Account *
-            </label>
-            <select
-              value={selectedCustId}
-              onChange={(e) => {
-                setSelectedCustId(e.target.value);
-                setSelectedEquipId('');
-              }}
-              required
-              className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-white focus:outline-none focus:border-primary"
-            >
-              <option value="">-- Choose Customer from CRM --</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.companyName ? `${c.companyName} (${c.name})` : c.name} · {c.phone}
-                </option>
-              ))}
-            </select>
+          {/* Customer Selection - Searchable Typeahead Combobox for 1,000s of Customers */}
+          <div className="relative">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Select Customer Account *
+              </label>
+              <span className="text-[11px] text-muted">
+                {customers.length} total accounts in CRM
+              </span>
+            </div>
+
+            {selectedCustId && activeCustomer ? (
+              <div className="p-3 rounded-2xl bg-surface-elevated border border-primary/40 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white">
+                      {activeCustomer.companyName
+                        ? `${activeCustomer.companyName} (${activeCustomer.name})`
+                        : activeCustomer.name}
+                    </span>
+                    <Badge variant={activeCustomer.customerType === 'COMMERCIAL' ? 'accent' : 'neutral'}>
+                      {activeCustomer.customerType || 'RESIDENTIAL'}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-subtle">
+                    {activeCustomer.phone} {activeCustomer.address ? `· ${activeCustomer.address}` : ''}
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7"
+                  onClick={() => {
+                    setSelectedCustId('');
+                    setSelectedEquipId('');
+                    setCustomerSearchQuery('');
+                    setIsCustomerDropdownOpen(true);
+                  }}
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-muted absolute left-3.5 top-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search thousands of clients by name, company, phone, or address..."
+                    value={customerSearchQuery}
+                    onChange={(e) => {
+                      setCustomerSearchQuery(e.target.value);
+                      setIsCustomerDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsCustomerDropdownOpen(true)}
+                    className="w-full pl-9 pr-9 py-2.5 bg-surface border border-border rounded-xl text-xs text-white placeholder-muted focus:outline-none focus:border-primary transition-colors"
+                  />
+                  {customerSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomerSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-muted hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {isCustomerDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-30 max-h-60 overflow-y-auto bg-surface-card border border-border rounded-2xl shadow-2xl p-1.5 space-y-1">
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCustId(c.id);
+                            setSelectedEquipId('');
+                            setIsCustomerDropdownOpen(false);
+                            setCustomerSearchQuery('');
+                          }}
+                          className="w-full text-left p-2.5 rounded-xl hover:bg-surface-elevated flex items-center justify-between transition-colors group"
+                        >
+                          <div className="space-y-0.5 min-w-0 pr-2">
+                            <p className="text-xs font-semibold text-white group-hover:text-primary transition-colors truncate">
+                              {c.companyName ? `${c.companyName} (${c.name})` : c.name}
+                            </p>
+                            <p className="text-[11px] text-muted truncate">
+                              {c.phone} {c.address ? `· ${c.address}` : ''}
+                            </p>
+                          </div>
+                          <Badge variant="neutral" className="text-[10px] shrink-0">
+                            {c.customerType || 'CLIENT'}
+                          </Badge>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-muted">
+                        No customers match &quot;{customerSearchQuery}&quot;
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Equipment Dropdown */}
