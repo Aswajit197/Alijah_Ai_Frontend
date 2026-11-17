@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Wrench,
   Flame,
@@ -17,10 +17,24 @@ import {
   Sparkles,
   Building2,
   Key,
+  Loader2,
 } from 'lucide-react';
 
-export default function CustomerSelfBookingPage() {
+interface CompanyProfile {
+  name: string;
+  slug: string;
+  phone?: string | null;
+  tradeType: string;
+  address?: string | null;
+}
+
+function CustomerBookingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const companySlug = searchParams?.get('company') || '';
+
+  const [company, setCompany] = useState<CompanyProfile | null>(null);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(true);
 
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -43,8 +57,33 @@ export default function CustomerSelfBookingPage() {
     jobId: string;
     jobNumber: string;
     customerName: string;
+    companyName: string;
     trackingUrl: string;
   } | null>(null);
+
+  // Load company branding dynamically based on ?company= slug
+  useEffect(() => {
+    const fetchCompany = async () => {
+      setIsLoadingCompany(true);
+      try {
+        const slug = companySlug || 'default';
+        const res = await fetch(`http://localhost:5000/api/v1/jobs/company/${slug}`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setCompany(data.data);
+          if (data.data.tradeType) {
+            setTradeType(data.data.tradeType);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load company branding:', err);
+      } finally {
+        setIsLoadingCompany(false);
+      }
+    };
+
+    fetchCompany();
+  }, [companySlug]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +100,7 @@ export default function CustomerSelfBookingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          tenantSlug: company?.slug || companySlug || undefined,
           name: name.trim(),
           companyName: companyName.trim() || undefined,
           phone: phone.trim(),
@@ -89,6 +129,10 @@ export default function CustomerSelfBookingPage() {
     }
   };
 
+  const displayName = company?.name || 'Desert Air HVAC & Plumbing';
+  const displayPhone = company?.phone || '(480) 555-0199';
+  const displayTrade = company?.tradeType || 'HVAC';
+
   return (
     <div className="min-h-screen bg-[#080C15] text-slate-100 flex flex-col items-center">
       {/* Top Header */}
@@ -96,20 +140,25 @@ export default function CustomerSelfBookingPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-black text-white shadow-md shadow-blue-500/20">
-              E
+              {displayName.charAt(0)}
             </div>
             <div>
-              <h1 className="text-sm font-bold text-white">Desert Air HVAC & Plumbing</h1>
+              <h1 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>{displayName}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  {displayTrade}
+                </span>
+              </h1>
               <p className="text-[11px] text-slate-400">24/7 Fast Repair & Emergency Dispatch</p>
             </div>
           </div>
 
           <a
-            href="tel:(480)555-0199"
+            href={`tel:${displayPhone}`}
             className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors"
           >
             <Phone className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">(480) 555-0199</span>
+            <span className="hidden sm:inline">{displayPhone}</span>
             <span className="sm:hidden">Call</span>
           </a>
         </div>
@@ -126,13 +175,14 @@ export default function CustomerSelfBookingPage() {
 
             <div className="space-y-2">
               <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-xs font-bold">
-                {confirmedJob.jobNumber} CONFIRMED
+                {confirmedJob.jobNumber} CONFIRMED · {confirmedJob.companyName}
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                 Service Request Received!
               </h2>
               <p className="text-sm text-slate-300 max-w-lg mx-auto">
-                Thank you, <span className="font-semibold text-white">{confirmedJob.customerName}</span>. Your request has been queued in our dispatch system. We have notified our on-call technicians.
+                Thank you, <span className="font-semibold text-white">{confirmedJob.customerName}</span>. Your request has been queued in the{' '}
+                <strong className="text-white">{confirmedJob.companyName}</strong> dispatch system. We have notified our on-call technicians.
               </p>
             </div>
 
@@ -168,7 +218,7 @@ export default function CustomerSelfBookingPage() {
           <div className="space-y-6">
             <div className="text-center space-y-2 max-w-xl mx-auto">
               <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Fast Service Dispatch
+                <Sparkles className="w-3.5 h-3.5" /> Fast Service Dispatch · {displayName}
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                 Schedule Service or Emergency Repair
@@ -358,7 +408,7 @@ export default function CustomerSelfBookingPage() {
                   <textarea
                     required
                     rows={3}
-                    placeholder="e.g. The AC stopped blowing cold air this afternoon. Thermostat is reading 82 degrees and the outside fan is buzzing."
+                    placeholder="e.g. The unit stopped working this afternoon. Strange noise and not functioning properly."
                     value={reportedIssue}
                     onChange={(e) => setReportedIssue(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 leading-relaxed"
@@ -415,7 +465,7 @@ export default function CustomerSelfBookingPage() {
                   )}
                 </button>
                 <p className="text-center text-[11px] text-slate-500 mt-2">
-                  No account or password required · Instant live dispatch confirmation
+                  No account or password required · Dispatched directly to {displayName}
                 </p>
               </div>
             </form>
@@ -423,5 +473,20 @@ export default function CustomerSelfBookingPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function CustomerSelfBookingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#080C15] flex items-center justify-center text-slate-400 text-xs">
+          <Loader2 className="w-5 h-5 animate-spin mr-2 text-primary" />
+          Loading booking portal...
+        </div>
+      }
+    >
+      <CustomerBookingContent />
+    </Suspense>
   );
 }
