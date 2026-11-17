@@ -720,7 +720,7 @@ export default function SchedulePage() {
                         ? `${activeCustomer.companyName} (${activeCustomer.name})`
                         : activeCustomer.name}
                     </span>
-                    <Badge variant={activeCustomer.customerType === 'COMMERCIAL' ? 'accent' : 'neutral'}>
+                    <Badge variant={activeCustomer.customerType === 'COMMERCIAL' ? 'info' : 'neutral'}>
                       {activeCustomer.customerType || 'RESIDENTIAL'}
                     </Badge>
                   </div>

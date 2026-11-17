@@ -63,6 +63,7 @@ export default function PublicJobTrackingPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLiveConnected, setIsLiveConnected] = useState(false);
 
   const fetchTracking = async (isManual = false) => {
     if (!jobId) return;
@@ -88,12 +89,81 @@ export default function PublicJobTrackingPage() {
   };
 
   useEffect(() => {
-    fetchTracking();
-    // Poll every 4 seconds for live dispatch updates
-    const interval = setInterval(() => {
-      fetchTracking();
-    }, 4000);
-    return () => clearInterval(interval);
+    if (!jobId) return;
+
+    let eventSource: EventSource | null = null;
+    let fallbackTimer: NodeJS.Timeout | null = null;
+    let isTerminated = false;
+
+    // Connect to Server-Sent Events (SSE) Stream
+    const setupSSE = () => {
+      try {
+        const streamUrl = `http://localhost:5000/api/v1/jobs/public-track/${jobId}/stream`;
+        eventSource = new EventSource(streamUrl);
+
+        eventSource.onopen = () => {
+          setIsLiveConnected(true);
+          setError(null);
+          // If SSE connection succeeded, clear any fallback polling
+          if (fallbackTimer) {
+            clearInterval(fallbackTimer);
+            fallbackTimer = null;
+          }
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setJob(data);
+            setLoading(false);
+            setLastRefreshed(new Date());
+            setError(null);
+
+            // If job reached completed/cancelled, gracefully close SSE stream
+            if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
+              isTerminated = true;
+              eventSource?.close();
+              setIsLiveConnected(false);
+            }
+          } catch (e) {
+            console.error('Error parsing SSE event:', e);
+          }
+        };
+
+        eventSource.onerror = () => {
+          setIsLiveConnected(false);
+          eventSource?.close();
+
+          // Only fallback to polling if not terminated and not already scheduled
+          if (!isTerminated && !fallbackTimer) {
+            fallbackTimer = setInterval(() => {
+              if (!document.hidden && !isTerminated) {
+                fetchTracking();
+              }
+            }, 8000);
+          }
+        };
+      } catch (err) {
+        console.error('SSE initialization error:', err);
+        fetchTracking();
+      }
+    };
+
+    setupSSE();
+
+    // Pause/resume on tab visibility
+    const handleVisibility = () => {
+      if (!document.hidden && !isTerminated && !isLiveConnected) {
+        fetchTracking();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (eventSource) eventSource.close();
+      if (fallbackTimer) clearInterval(fallbackTimer);
+    };
   }, [jobId]);
 
   if (loading) {
@@ -196,8 +266,8 @@ export default function PublicJobTrackingPage() {
                 {job.company.name}
               </h1>
               <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Live Dispatch Tracking
+                <span className={`inline-block w-2 h-2 rounded-full ${isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
+                {isLiveConnected ? 'Live Real-Time Stream (SSE)' : 'Live Dispatch Tracking'}
               </div>
             </div>
           </div>
@@ -228,14 +298,25 @@ export default function PublicJobTrackingPage() {
               </span>
             </div>
 
-            <button
-              onClick={() => fetchTracking(true)}
-              className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-              title="Refresh tracking status"
-            >
-              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
-              <span>Live Sync</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <span className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                isLiveConnected
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
+                {isLiveConnected ? 'Real-Time SSE' : 'Connecting'}
+              </span>
+
+              <button
+                onClick={() => fetchTracking(true)}
+                className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+                title="Refresh tracking status"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
+                <span>Sync</span>
+              </button>
+            </div>
           </div>
 
           {/* Dynamic Headline Based on Status */}

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'neutral';
+  variant?: 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'neutral' | 'accent';
   className?: string;
   dot?: boolean;
 }
@@ -16,6 +16,7 @@ export function Badge({ children, variant = 'neutral', className, dot = false }:
     info: 'bg-sky-500/10 text-sky-400 border-sky-500/25',
     primary: 'bg-primary/15 text-indigo-300 border-primary/30',
     neutral: 'bg-slate-800/40 text-slate-300 border-border',
+    accent: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
   };
 
   const dotColors = {
@@ -25,6 +26,7 @@ export function Badge({ children, variant = 'neutral', className, dot = false }:
     info: 'bg-sky-400',
     primary: 'bg-indigo-400',
     neutral: 'bg-slate-400',
+    accent: 'bg-sky-400',
   };
 
   return (

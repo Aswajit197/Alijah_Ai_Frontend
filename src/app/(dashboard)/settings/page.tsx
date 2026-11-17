@@ -18,7 +18,11 @@ import {
   Sparkles,
   Globe,
   Code,
+  QrCode,
+  Printer,
+  Download,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +81,10 @@ export default function SettingsPage() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedBookingUrl, setCopiedBookingUrl] = useState(false);
   const [copiedEmbedCode, setCopiedEmbedCode] = useState(false);
+
+  // QR Code & Sticker States
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
 
   const loadTeamAndRoles = async () => {
     setIsLoading(true);
@@ -145,6 +153,159 @@ export default function SettingsPage() {
     navigator.clipboard.writeText(link);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  // Generate high-resolution QR code for company booking URL
+  useEffect(() => {
+    const slug = user?.tenantSlug || 'desert-air';
+    const bookingUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/book/${slug}`
+        : `http://localhost:3000/book/${slug}`;
+
+    QRCode.toDataURL(bookingUrl, {
+      width: 500,
+      margin: 2,
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => setQrDataUrl(url))
+      .catch((err) => console.error('Failed to generate QR code:', err));
+  }, [user?.tenantSlug]);
+
+  const handleDownloadQrPng = () => {
+    if (!qrDataUrl) return;
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = `${user?.tenantSlug || 'service'}-equipment-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintSticker = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const companyName = user?.tenantName || 'Service Contractor';
+    const bookingUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}`
+        : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Equipment Sticker - ${companyName}</title>
+          <style>
+            @page { size: 4in 3in; margin: 0; }
+            body {
+              margin: 0;
+              padding: 12px;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background: #fff;
+              color: #0f172a;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              box-sizing: border-box;
+            }
+            .sticker {
+              width: 3.7in;
+              height: 2.7in;
+              border: 3px solid #0f172a;
+              border-radius: 14px;
+              padding: 14px;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: space-between;
+              text-align: center;
+            }
+            .badge {
+              font-size: 8px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #2563eb;
+              background: #eff6ff;
+              padding: 2px 8px;
+              border-radius: 9999px;
+              border: 1px solid #bfdbfe;
+              margin-bottom: 2px;
+            }
+            .header {
+              font-size: 14px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              line-height: 1.2;
+            }
+            .sub {
+              font-size: 10px;
+              color: #64748b;
+              font-weight: 600;
+              margin-top: 2px;
+            }
+            .qr-img {
+              width: 115px;
+              height: 115px;
+              margin: 4px 0;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 4px;
+            }
+            .scan-cta {
+              font-size: 11px;
+              font-weight: 800;
+              color: #0f172a;
+              letter-spacing: 0.5px;
+            }
+            .url {
+              font-size: 9px;
+              color: #64748b;
+              font-family: monospace;
+              word-break: break-all;
+            }
+            .footer {
+              font-size: 8px;
+              color: #94a3b8;
+              font-weight: 600;
+              text-transform: uppercase;
+              border-top: 1px solid #e2e8f0;
+              width: 100%;
+              padding-top: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="sticker">
+            <div>
+              <div class="badge">Official Service Tag</div>
+              <div class="header">${companyName}</div>
+              <div class="sub">24/7 Fast Repair & Emergency Dispatch</div>
+            </div>
+            <img src="${qrDataUrl}" class="qr-img" />
+            <div>
+              <div class="scan-cta">SCAN WITH PHONE TO BOOK REPAIR</div>
+              <div class="url">${bookingUrl}</div>
+            </div>
+            <div class="footer">Licensed & Insured · Autonomous Operations Platform</div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const getRoleBadgeVariant = (roleSlug: string): 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'neutral' => {
@@ -268,25 +429,27 @@ export default function SettingsPage() {
           </a>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
           {/* Card A: Direct Clean URL */}
-          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-sky-400" />
-                Dedicated Booking URL
-              </span>
-              <span className="text-[10px] text-muted font-mono">Clean Branded Path</span>
+          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5 flex flex-col justify-between">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-sky-400" />
+                  Dedicated Booking URL
+                </span>
+                <span className="text-[10px] text-muted font-mono">Clean Branded Path</span>
+              </div>
+              <p className="text-[11px] text-muted">
+                Add this link behind your website’s &quot;Book Service&quot; button, your Google Business Profile, or emails:
+              </p>
             </div>
-            <p className="text-[11px] text-muted">
-              Add this link behind your website’s &quot;Book Service&quot; button, your Google Business Profile, or print on equipment QR stickers:
-            </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-2">
               <input
                 type="text"
                 readOnly
                 value={typeof window !== 'undefined' ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}` : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-sky-300 font-mono select-all focus:outline-none"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-sky-300 font-mono select-all focus:outline-none truncate"
               />
               <Button
                 type="button"
@@ -316,18 +479,20 @@ export default function SettingsPage() {
           </div>
 
           {/* Card B: Website Embed HTML Code */}
-          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Code className="w-3.5 h-3.5 text-primary" />
-                Website Embed HTML Button
-              </span>
-              <span className="text-[10px] text-muted font-mono">1-Line Snippet</span>
+          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5 flex flex-col justify-between">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Code className="w-3.5 h-3.5 text-primary" />
+                  Website Embed Button
+                </span>
+                <span className="text-[10px] text-muted font-mono">1-Line Snippet</span>
+              </div>
+              <p className="text-[11px] text-muted">
+                Copy and paste this HTML code directly into your WordPress, Squarespace, or Wix website header or footer:
+              </p>
             </div>
-            <p className="text-[11px] text-muted">
-              Copy and paste this HTML code directly into your WordPress, Squarespace, or Wix website header or footer:
-            </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-2">
               <input
                 type="text"
                 readOnly
@@ -354,9 +519,70 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Copy Code</span>
+                    <span>Copy</span>
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Card C: Equipment QR Code & Printable Sticker */}
+          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  Equipment QR Code Sticker
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                  Physical Tag
+                </span>
+              </div>
+              <p className="text-[11px] text-muted">
+                Affix to AC units, furnaces, and breaker boxes so homeowners can scan with their phone camera to book 24/7.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-surface border border-border my-1">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="Booking QR Code"
+                  className="w-14 h-14 rounded-lg bg-white p-1 border border-border/60 shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-lg bg-surface-card border border-border flex items-center justify-center shrink-0">
+                  <QrCode className="w-5 h-5 text-muted animate-pulse" />
+                </div>
+              )}
+              <div className="text-xs space-y-0.5 min-w-0">
+                <p className="font-bold text-white truncate text-xs">{user?.tenantName || 'Service Company'}</p>
+                <p className="text-[11px] text-emerald-400 font-medium">Scan to Book Service</p>
+                <p className="text-[10px] font-mono text-muted truncate">/book/{user?.tenantSlug || 'desert-air'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleDownloadQrPng}
+                className="gap-1.5 text-xs h-9"
+              >
+                <Download className="w-3.5 h-3.5 text-sky-400" />
+                <span>PNG</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                onClick={() => setIsStickerModalOpen(true)}
+                className="gap-1.5 text-xs h-9 shadow-md shadow-primary-glow font-bold"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Sticker</span>
               </Button>
             </div>
           </div>
@@ -565,6 +791,92 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Printable Equipment QR Sticker Modal */}
+      <Modal
+        isOpen={isStickerModalOpen}
+        onClose={() => setIsStickerModalOpen(false)}
+        title="Printable Equipment Service Tag"
+        description="Affix these adhesive vinyl tags to AC condensers, furnaces, water heaters, and breaker panels."
+        maxWidth="lg"
+      >
+        <div className="space-y-5">
+          {/* Sticker Preview Card */}
+          <div className="p-6 rounded-2xl bg-white text-slate-900 border-4 border-slate-900 shadow-xl max-w-sm mx-auto text-center space-y-3">
+            <div>
+              <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
+                Official Equipment Tag
+              </span>
+              <h3 className="text-base font-black uppercase tracking-tight text-slate-900 mt-1">
+                {user?.tenantName || 'Service Contractor'}
+              </h3>
+              <p className="text-[11px] text-slate-600 font-semibold">
+                24/7 Fast Repair & Emergency Dispatch
+              </p>
+            </div>
+
+            {qrDataUrl && (
+              <div className="inline-block p-2 bg-white rounded-xl border-2 border-slate-200 shadow-inner">
+                <img
+                  src={qrDataUrl}
+                  alt="Booking QR Code"
+                  className="w-36 h-36 mx-auto"
+                />
+              </div>
+            )}
+
+            <div>
+              <p className="text-xs font-extrabold tracking-wide text-slate-900">
+                SCAN WITH CAMERA TO BOOK REPAIR
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                {typeof window !== 'undefined' ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}` : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-200 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+              Licensed · Insured · Professional Trade Contractor
+            </div>
+          </div>
+
+          {/* Sticker Info Note */}
+          <div className="p-3.5 rounded-xl bg-surface border border-border text-xs text-muted flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p>
+              <strong>Technician Tip:</strong> When installing or servicing equipment, slap this 3&quot;x3&quot; sticker on the unit. When the unit fails or needs maintenance years later, the homeowner scans the QR code, instantly routing the work order back to your company!
+            </p>
+          </div>
+
+          {/* Modal Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadQrPng}
+              className="gap-1.5 text-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PNG</span>
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" onClick={() => setIsStickerModalOpen(false)}>
+                Close
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handlePrintSticker}
+                className="gap-1.5 text-xs font-bold shadow-md shadow-primary-glow"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Sticker (4x3)</span>
+              </Button>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );

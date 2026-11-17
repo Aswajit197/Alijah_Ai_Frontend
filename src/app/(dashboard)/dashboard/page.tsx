@@ -75,15 +75,19 @@ export default function DashboardPage() {
 
           {/* Quick Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <Button variant="outline" size="sm" className="gap-2 text-xs">
-              <CalendarPlus className="w-3.5 h-3.5 text-primary" />
-              <span>Book Service</span>
-            </Button>
+            <a href="/schedule">
+              <Button variant="outline" size="sm" className="gap-2 text-xs">
+                <CalendarPlus className="w-3.5 h-3.5 text-primary" />
+                <span>Book Service</span>
+              </Button>
+            </a>
 
-            <Button variant="primary" size="sm" className="gap-2 text-xs shadow-md shadow-primary-glow">
-              <PhoneCall className="w-3.5 h-3.5" />
-              <span>Simulate Inbound Call</span>
-            </Button>
+            <a href="/tech">
+              <Button variant="primary" size="sm" className="gap-2 text-xs shadow-md shadow-primary-glow">
+                <Zap className="w-3.5 h-3.5" />
+                <span>Mobile Field App</span>
+              </Button>
+            </a>
           </div>
         </div>
       </div>
