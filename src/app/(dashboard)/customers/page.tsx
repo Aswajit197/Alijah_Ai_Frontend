@@ -24,6 +24,9 @@ import {
   Layers,
   Sparkles,
   ShieldAlert,
+  Clock,
+  User,
+  Flame,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -451,7 +454,7 @@ export default function CustomersPage() {
           />
 
           {/* Drawer Panel */}
-          <div className="relative w-full max-w-xl bg-surface-elevated border-l border-border h-full shadow-2xl z-10 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+          <div className="relative w-full max-w-xl lg:max-w-2xl bg-surface-elevated border-l border-border h-full shadow-2xl z-10 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
             {/* Drawer Header */}
             <div className="p-6 border-b border-border flex items-start justify-between bg-surface/60">
               <div className="min-w-0 pr-4">
@@ -582,14 +585,18 @@ export default function CustomersPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-border/60">
-                          <div>
-                            <span className="text-[10px] text-subtle block uppercase">Model #</span>
-                            <span className="font-mono text-slate-200">{eq.modelNumber || 'N/A'}</span>
+                        <div className="grid grid-cols-2 gap-3 text-xs pt-2.5 border-t border-border/60">
+                          <div className="p-2.5 rounded-xl bg-surface-elevated/60 border border-border/40">
+                            <span className="text-[10px] text-muted block uppercase font-semibold">Model Specification</span>
+                            <span className="font-mono text-slate-200 font-medium">
+                              {eq.modelNumber || 'Standard Unit'}
+                            </span>
                           </div>
-                          <div>
-                            <span className="text-[10px] text-subtle block uppercase">Serial #</span>
-                            <span className="font-mono text-accent font-semibold">{eq.serialNumber || 'N/A'}</span>
+                          <div className="p-2.5 rounded-xl bg-surface-elevated/60 border border-border/40">
+                            <span className="text-[10px] text-muted block uppercase font-semibold">Serial Number</span>
+                            <span className="font-mono text-accent font-semibold">
+                              {eq.serialNumber || 'Pending Site Tag'}
+                            </span>
                           </div>
                         </div>
 
@@ -631,34 +638,170 @@ export default function CustomersPage() {
                 </h4>
 
                 {selectedCustomer.jobs && selectedCustomer.jobs.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedCustomer.jobs.map((j: any) => (
-                      <div
-                        key={j.id}
-                        className="p-3 rounded-xl bg-surface border border-border flex items-center justify-between text-xs hover:border-border-hover transition-colors"
-                      >
-                        <div>
-                          <p className="font-semibold text-white">{j.title}</p>
-                          <p className="text-[11px] text-subtle mt-0.5">
-                            {new Date(j.createdAt).toLocaleDateString()} · Status:{' '}
-                            <span className="font-medium text-emerald-400">{j.status}</span>
-                          </p>
+                  <div className="space-y-3">
+                    {selectedCustomer.jobs.map((j: any) => {
+                      const startTime = j.scheduledStart
+                        ? new Date(j.scheduledStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : null;
+                      const endTime = j.scheduledEnd
+                        ? new Date(j.scheduledEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : null;
+
+                      const getJobStatusBadge = (status: string) => {
+                        switch (status) {
+                          case 'UNSCHEDULED':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                Unscheduled
+                              </span>
+                            );
+                          case 'SCHEDULED':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                Scheduled
+                              </span>
+                            );
+                          case 'DISPATCHED':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                                Dispatched
+                              </span>
+                            );
+                          case 'EN_ROUTE':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                En Route
+                              </span>
+                            );
+                          case 'ON_SITE':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                                On Site
+                              </span>
+                            );
+                          case 'COMPLETED':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                Completed
+                              </span>
+                            );
+                          default:
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                                {status}
+                              </span>
+                            );
+                        }
+                      };
+
+                      const getJobPriorityBadge = (priority: string) => {
+                        switch (priority) {
+                          case 'EMERGENCY':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                                <Flame className="w-2.5 h-2.5" /> Emergency
+                              </span>
+                            );
+                          case 'HIGH':
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                High Priority
+                              </span>
+                            );
+                          case 'NORMAL':
+                          default:
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                Normal
+                              </span>
+                            );
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={j.id}
+                          className="p-4 rounded-2xl bg-surface border border-border hover:border-slate-600 transition-all space-y-3 shadow-md"
+                        >
+                          {/* Card Top: Job #, Priority, Status & Live Tracker Link */}
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+                                {j.jobNumber || 'WORK ORDER'}
+                              </span>
+                              {getJobPriorityBadge(j.priority)}
+                              {getJobStatusBadge(j.status)}
+                            </div>
+
+                            <a
+                              href={`/track/${j.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                              title="Open Customer Live Tracking Screen"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+                              <span>Live Tracker</span>
+                            </a>
+                          </div>
+
+                          {/* Work Order Title */}
+                          <h5 className="font-bold text-white text-sm leading-snug">
+                            {j.title}
+                          </h5>
+
+                          {/* Full Reported Symptoms / Request Description (Fully visible, No Truncation!) */}
+                          {j.reportedIssue && (
+                            <div className="p-3.5 rounded-xl bg-surface-elevated/90 border border-border/80 text-xs text-slate-200 leading-relaxed space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted block">
+                                Reported Symptoms & Issue Details:
+                              </span>
+                              <p className="whitespace-pre-wrap font-normal text-slate-100">
+                                {j.reportedIssue}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Details Metadata Grid */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1 border-t border-border/60">
+                            <div>
+                              <span className="text-[10px] text-muted block uppercase">Logged Date</span>
+                              <span className="text-slate-300 font-medium">
+                                {new Date(j.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] text-muted block uppercase">Arrival Window</span>
+                              <span className="text-slate-300 font-medium truncate block">
+                                {startTime && endTime ? `${startTime} – ${endTime}` : 'Triage Queue'}
+                              </span>
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1">
+                              <span className="text-[10px] text-muted block uppercase">Assigned Tech</span>
+                              <span className="text-slate-300 font-medium flex items-center gap-1">
+                                <User className="w-3 h-3 text-primary shrink-0" />
+                                <span className="truncate">{j.technician?.name || 'Unassigned'}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Technician Field Diagnostic Notes (if logged) */}
+                          {j.notes && (
+                            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200 flex items-start gap-2.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                              <div className="space-y-0.5 min-w-0">
+                                <span className="text-[10px] font-bold uppercase text-emerald-400 block">
+                                  Technician Field Resolution Notes:
+                                </span>
+                                <p className="italic leading-relaxed text-slate-200">{j.notes}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="neutral">{j.priority}</Badge>
-                          <a
-                            href={`/track/${j.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded-lg bg-surface-elevated hover:bg-slate-700 text-subtle hover:text-white transition-colors flex items-center gap-1 text-[11px]"
-                            title="View Customer Live Tracking"
-                          >
-                            <ExternalLink className="w-3 h-3 text-sky-400" />
-                            <span>Track</span>
-                          </a>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-xs text-subtle italic">No past work orders logged for this client.</p>
