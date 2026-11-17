@@ -22,6 +22,7 @@ import {
   ArrowRight,
   X,
   Phone,
+  Flame,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,8 @@ interface Job {
     address?: string;
     city?: string;
     state?: string;
+    gateCode?: string;
+    accessNotes?: string;
   };
   equipment?: {
     id: string;
@@ -85,6 +88,7 @@ interface Job {
     brand: string;
     modelNumber?: string;
     serialNumber?: string;
+    warrantyStatus?: string;
   };
   technician?: {
     id: string;
@@ -109,6 +113,8 @@ export default function SchedulePage() {
   const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [activeJobForDispatch, setActiveJobForDispatch] = useState<Job | null>(null);
+  const [dispatchDate, setDispatchDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [detectedWindow, setDetectedWindow] = useState<string | null>(null);
 
   // Form states - New Job
   const [selectedCustId, setSelectedCustId] = useState('');
@@ -153,6 +159,15 @@ export default function SchedulePage() {
 
   // Selected customer for modal
   const activeCustomer = customers.find((c) => c.id === selectedCustId);
+
+  // Sorted technicians: Certified field technicians first
+  const sortedTechnicians = [...technicians].sort((a, b) => {
+    const aIsTech = a.role?.slug === 'technician' || a.role?.name?.toLowerCase().includes('tech') ? 0 : 1;
+    const bIsTech = b.role?.slug === 'technician' || b.role?.name?.toLowerCase().includes('tech') ? 0 : 1;
+    return aIsTech - bIsTech;
+  });
+
+  const selectedTechObj = technicians.find((t) => t.id === assignedTechId);
 
   // Fast filtered customers for searchable combobox (supports 1000s of CRM records)
   const filteredCustomers = customers
@@ -215,18 +230,19 @@ export default function SchedulePage() {
     setIsSubmitting(true);
 
     try {
-      const startIso = new Date(`${selectedDate}T${jobStartTime}:00`).toISOString();
-      const endIso = new Date(`${selectedDate}T${jobEndTime}:00`).toISOString();
+      const targetDate = dispatchDate || selectedDate;
+      const startIso = new Date(`${targetDate}T${jobStartTime}:00`).toISOString();
+      const endIso = new Date(`${targetDate}T${jobEndTime}:00`).toISOString();
 
       await apiRequest(`/jobs/${activeJobForDispatch.id}/dispatch`, {
         method: 'PATCH',
         body: JSON.stringify({
           technicianId: assignedTechId,
-          scheduledDate: selectedDate,
+          scheduledDate: targetDate,
           scheduledStart: startIso,
           scheduledEnd: endIso,
           priority: jobPriority,
-          notes: jobNotes || undefined,
+          notes: jobNotes.trim() || undefined,
         }),
       });
 
@@ -269,17 +285,64 @@ export default function SchedulePage() {
 
   const openDispatchDialog = (job: Job) => {
     setActiveJobForDispatch(job);
-    setAssignedTechId(job.technicianId || (technicians[0] ? technicians[0].id : ''));
-    setJobPriority(job.priority);
-    setJobNotes(job.notes || '');
+    const preferredTech =
+      technicians.find(
+        (t) =>
+          t.role?.slug === 'technician' ||
+          t.role?.name?.toLowerCase().includes('tech')
+      ) || technicians[0];
+    setAssignedTechId(job.technicianId || (preferredTech ? preferredTech.id : ''));
+    setJobPriority(job.priority || 'NORMAL');
+    setDispatchDate(
+      job.scheduledDate
+        ? new Date(job.scheduledDate).toISOString().split('T')[0]
+        : selectedDate || new Date().toISOString().split('T')[0]
+    );
+
+    let defaultStart = '09:00';
+    let defaultEnd = '13:00';
+    let foundWindow: string | null = null;
+    let cleanNotes = job.notes || '';
+
+    if (job.notes && job.notes.includes('Preferred Window:')) {
+      const match = job.notes.match(/Preferred Window:\s*([^\n\r]+)/i);
+      if (match && match[1]) {
+        foundWindow = match[1].trim();
+        const lower = foundWindow.toLowerCase();
+        if (lower.includes('morning') || lower.includes('8:00')) {
+          defaultStart = '08:00';
+          defaultEnd = '12:00';
+        } else if (lower.includes('afternoon') || lower.includes('12:00')) {
+          defaultStart = '12:00';
+          defaultEnd = '16:00';
+        } else if (
+          lower.includes('evening') ||
+          lower.includes('4:00') ||
+          lower.includes('16:00')
+        ) {
+          defaultStart = '16:00';
+          defaultEnd = '20:00';
+        }
+        cleanNotes = cleanNotes
+          .replace(/Preferred Window:\s*[^\n\r]+/i, '')
+          .replace(/^\s*[\r\n]/gm, '')
+          .trim();
+      }
+    }
+
     if (job.scheduledStart) {
       const s = new Date(job.scheduledStart);
-      setJobStartTime(`${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`);
+      defaultStart = `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`;
     }
     if (job.scheduledEnd) {
       const e = new Date(job.scheduledEnd);
-      setJobEndTime(`${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`);
+      defaultEnd = `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`;
     }
+
+    setDetectedWindow(foundWindow);
+    setJobStartTime(defaultStart);
+    setJobEndTime(defaultEnd);
+    setJobNotes(cleanNotes);
     setIsDispatchModalOpen(true);
   };
 
@@ -862,70 +925,403 @@ export default function SchedulePage() {
       <Modal
         isOpen={isDispatchModalOpen}
         onClose={() => setIsDispatchModalOpen(false)}
-        title={`Dispatch ${activeJobForDispatch?.jobNumber || 'Work Order'}`}
-        description="Allocate this job to a technician lane and set arrival window."
-        maxWidth="lg"
+        title={
+          activeJobForDispatch?.status === 'UNSCHEDULED'
+            ? `Dispatch ${activeJobForDispatch?.jobNumber || 'Work Order'}`
+            : `Reschedule ${activeJobForDispatch?.jobNumber || 'Work Order'}`
+        }
+        description="Allocate work order to a technician lane, verify site access details, and lock in the customer arrival window."
+        maxWidth="2xl"
       >
         <form onSubmit={handleQuickDispatch} className="space-y-4">
-          <div className="p-3.5 rounded-xl bg-surface border border-border text-xs space-y-1">
-            <p className="font-bold text-white text-sm">{activeJobForDispatch?.title}</p>
-            <p className="text-muted">
-              {activeJobForDispatch?.customer?.companyName || activeJobForDispatch?.customer?.name} ·{' '}
-              {activeJobForDispatch?.serviceAddress}
-            </p>
+          {/* Work Order Overview Card */}
+          <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
+            {/* Header: Job Number & Priority & Status */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
+                  {activeJobForDispatch?.jobNumber || 'JOB'}
+                </span>
+                {getPriorityBadge(jobPriority)}
+              </div>
+              <span className="text-[11px] font-medium text-muted">
+                Created:{' '}
+                {activeJobForDispatch?.createdAt
+                  ? new Date(activeJobForDispatch.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  : 'Today'}
+              </span>
+            </div>
+
+            {/* Customer & Address Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1 border-t border-border/50">
+              <div>
+                <span className="text-muted block text-[11px] font-medium">Customer & Contact</span>
+                <p className="font-bold text-white text-sm">
+                  {activeJobForDispatch?.customer?.companyName ||
+                    activeJobForDispatch?.customer?.name ||
+                    'Unknown Customer'}
+                </p>
+                {activeJobForDispatch?.customer?.phone && (
+                  <a
+                    href={`tel:${activeJobForDispatch.customer.phone}`}
+                    className="text-primary hover:text-accent inline-flex items-center gap-1.5 text-xs mt-1"
+                  >
+                    <Phone className="w-3 h-3" />
+                    {activeJobForDispatch.customer.phone}
+                  </a>
+                )}
+              </div>
+
+              <div>
+                <span className="text-muted block text-[11px] font-medium">Service Address</span>
+                <p className="text-slate-200 text-xs">
+                  {activeJobForDispatch?.serviceAddress ||
+                    activeJobForDispatch?.customer?.address ||
+                    'No address provided'}
+                </p>
+                {activeJobForDispatch?.serviceAddress && (
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent(
+                      activeJobForDispatch.serviceAddress
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:text-accent inline-flex items-center gap-1.5 text-xs mt-1"
+                  >
+                    <ExternalLink className="w-3 h-3" /> Open in Google Maps
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Badges: Gate Code & Equipment */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
+              {activeJobForDispatch?.gateCode || activeJobForDispatch?.customer?.gateCode ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                  <span>
+                    Gate / Lockbox Code:{' '}
+                    <strong className="text-amber-200">
+                      {activeJobForDispatch.gateCode || activeJobForDispatch.customer?.gateCode}
+                    </strong>
+                  </span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-elevated border border-border text-slate-400 text-xs">
+                  <Key className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Gate / Access: Standard Entry</span>
+                </div>
+              )}
+
+              {activeJobForDispatch?.equipment ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs font-semibold">
+                  <Wrench className="w-3.5 h-3.5 text-sky-400" />
+                  <span>
+                    Unit:{' '}
+                    <strong className="text-sky-200">{activeJobForDispatch.equipment.name}</strong>{' '}
+                    ({activeJobForDispatch.equipment.brand})
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Full Reported Issue / Problem description - NEVER TRUNCATE */}
+            <div className="p-3 rounded-lg bg-surface-elevated border border-border/80">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                Reported Issue & Symptoms
+              </div>
+              <p className="text-xs text-white leading-relaxed">
+                {activeJobForDispatch?.reportedIssue ||
+                  activeJobForDispatch?.title ||
+                  'No issue description provided'}
+              </p>
+            </div>
           </div>
 
+          {/* Urgency & Priority Selector */}
           <div>
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
-              Select Field Technician *
+              Urgency & Priority Level
             </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setJobPriority('EMERGENCY')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                  jobPriority === 'EMERGENCY'
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500 shadow-sm shadow-rose-950'
+                    : 'bg-surface border-border text-slate-400 hover:text-white'
+                }`}
+              >
+                <Flame className="w-3.5 h-3.5 text-rose-400" />
+                Emergency
+              </button>
+              <button
+                type="button"
+                onClick={() => setJobPriority('HIGH')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                  jobPriority === 'HIGH'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500 shadow-sm shadow-amber-950'
+                    : 'bg-surface border-border text-slate-400 hover:text-white'
+                }`}
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                High Priority
+              </button>
+              <button
+                type="button"
+                onClick={() => setJobPriority('NORMAL')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                  jobPriority === 'NORMAL'
+                    ? 'bg-primary/20 text-accent border-primary shadow-sm shadow-primary-glow'
+                    : 'bg-surface border-border text-slate-400 hover:text-white'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                Standard
+              </button>
+            </div>
+          </div>
+
+          {/* Select Field Technician */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Assign Field Technician *
+              </label>
+              <span className="text-[11px] text-muted">
+                {sortedTechnicians.filter((t) => t.role?.slug === 'technician').length} certified tech(s) available
+              </span>
+            </div>
             <select
               value={assignedTechId}
               onChange={(e) => setAssignedTechId(e.target.value)}
               required
               className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-white focus:outline-none focus:border-primary"
             >
-              <option value="">-- Choose Technician --</option>
-              {technicians.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.role?.name})
-                </option>
-              ))}
+              <option value="">-- Choose Field Technician --</option>
+              {sortedTechnicians.map((t) => {
+                const isCertifiedTech =
+                  t.role?.slug === 'technician' || t.role?.name?.toLowerCase().includes('tech');
+                return (
+                  <option key={t.id} value={t.id}>
+                    {isCertifiedTech ? '⚡ ' : '👤 '}
+                    {t.name} ({t.role?.name || 'Technician'})
+                  </option>
+                );
+              })}
             </select>
+
+            {selectedTechObj && (
+              <div className="mt-2 flex items-center justify-between p-2.5 rounded-xl bg-surface border border-border text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center font-bold text-accent text-xs">
+                    {selectedTechObj.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">{selectedTechObj.name}</p>
+                    <p className="text-[11px] text-muted">
+                      {selectedTechObj.email}{' '}
+                      {selectedTechObj.phone ? `· ${selectedTechObj.phone}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                    selectedTechObj.role?.slug === 'technician'
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                      : 'bg-slate-700/50 text-slate-300 border-border'
+                  }`}
+                >
+                  {selectedTechObj.role?.name}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Arrival Start Window"
-              type="time"
-              required
-              value={jobStartTime}
-              onChange={(e) => setJobStartTime(e.target.value)}
-            />
+          {/* Scheduled Arrival Window Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Scheduled Arrival Window *
+              </label>
+              <span className="text-[11px] text-muted">Customer 2-4 hour appointment window</span>
+            </div>
 
-            <Input
-              label="Arrival End Window"
-              type="time"
-              required
-              value={jobEndTime}
-              onChange={(e) => setJobEndTime(e.target.value)}
-            />
+            {/* 1-Click Customer Preference Banner */}
+            {detectedWindow && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    <strong>Customer Requested:</strong> {detectedWindow}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lower = detectedWindow.toLowerCase();
+                    if (lower.includes('morning') || lower.includes('8:00')) {
+                      setJobStartTime('08:00');
+                      setJobEndTime('12:00');
+                    } else if (lower.includes('afternoon') || lower.includes('12:00')) {
+                      setJobStartTime('12:00');
+                      setJobEndTime('16:00');
+                    } else if (
+                      lower.includes('evening') ||
+                      lower.includes('4:00') ||
+                      lower.includes('16:00')
+                    ) {
+                      setJobStartTime('16:00');
+                      setJobEndTime('20:00');
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] transition-colors"
+                >
+                  Apply Window
+                </button>
+              </div>
+            )}
+
+            {/* Quick Preset Buttons */}
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setJobStartTime('08:00');
+                  setJobEndTime('12:00');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                  jobStartTime === '08:00' && jobEndTime === '12:00'
+                    ? 'bg-primary/20 text-accent border-primary'
+                    : 'bg-surface text-slate-300 border-border hover:bg-surface-elevated'
+                }`}
+              >
+                Morning (8 AM - 12 PM)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setJobStartTime('12:00');
+                  setJobEndTime('16:00');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                  jobStartTime === '12:00' && jobEndTime === '16:00'
+                    ? 'bg-primary/20 text-accent border-primary'
+                    : 'bg-surface text-slate-300 border-border hover:bg-surface-elevated'
+                }`}
+              >
+                Afternoon (12 PM - 4 PM)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setJobStartTime('16:00');
+                  setJobEndTime('20:00');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                  jobStartTime === '16:00' && jobEndTime === '20:00'
+                    ? 'bg-primary/20 text-accent border-primary'
+                    : 'bg-surface text-slate-300 border-border hover:bg-surface-elevated'
+                }`}
+              >
+                Evening (4 PM - 8 PM)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const startH = String(now.getHours()).padStart(2, '0');
+                  const startM = String(now.getMinutes()).padStart(2, '0');
+                  const endH = String((now.getHours() + 2) % 24).padStart(2, '0');
+                  setJobStartTime(`${startH}:${startM}`);
+                  setJobEndTime(`${endH}:${startM}`);
+                }}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 transition-colors"
+              >
+                ⚡ ASAP (Next 2 Hours)
+              </button>
+            </div>
+
+            {/* Date and Time Window Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <label className="text-[11px] font-bold text-muted block mb-1">
+                  Dispatch Date
+                </label>
+                <Input
+                  type="date"
+                  required
+                  value={dispatchDate}
+                  onChange={(e) => setDispatchDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-muted block mb-1">
+                  Start Window
+                </label>
+                <Input
+                  type="time"
+                  required
+                  value={jobStartTime}
+                  onChange={(e) => setJobStartTime(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-muted block mb-1">
+                  End Window
+                </label>
+                <Input
+                  type="time"
+                  required
+                  value={jobEndTime}
+                  onChange={(e) => setJobEndTime(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
-          <Input
-            label="Special Technician Notes"
-            placeholder="e.g. Check rooftop disconnect switch first"
-            value={jobNotes}
-            onChange={(e) => setJobNotes(e.target.value)}
-          />
+          {/* Special Technician Field Instructions */}
+          <div>
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+              Special Technician Field Instructions (Optional)
+            </label>
+            <textarea
+              rows={2}
+              value={jobNotes}
+              onChange={(e) => setJobNotes(e.target.value)}
+              placeholder="e.g. Check rooftop disconnect breaker first, customer will leave side gate unlocked."
+              className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-none"
+            />
+            <p className="text-[11px] text-muted mt-1">
+              Will be instantly visible to the technician on their Mobile Field Portal.
+            </p>
+          </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-            <Button type="button" variant="ghost" onClick={() => setIsDispatchModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              Confirm Dispatch
-            </Button>
+          {/* Modal Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-border">
+            <span className="text-[11px] text-muted hidden sm:inline">
+              Sends live SMS tracking notification to customer upon dispatch.
+            </span>
+            <div className="flex items-center gap-3 ml-auto">
+              <Button type="button" variant="ghost" onClick={() => setIsDispatchModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                isLoading={isSubmitting}
+                className="bg-primary hover:bg-primary-hover shadow-lg shadow-primary-glow font-bold"
+              >
+                <Truck className="w-4 h-4 mr-1.5" />
+                {activeJobForDispatch?.status === 'UNSCHEDULED' ? 'Confirm Dispatch' : 'Update & Reassign'}
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
