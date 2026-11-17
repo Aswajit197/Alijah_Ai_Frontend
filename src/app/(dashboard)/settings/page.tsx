@@ -16,6 +16,8 @@ import {
   Loader2,
   RefreshCw,
   Sparkles,
+  Globe,
+  Code,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -73,6 +75,8 @@ export default function SettingsPage() {
   // Staff Invite Result Modal
   const [createdInvite, setCreatedInvite] = useState<CreatedStaffInvite | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedBookingUrl, setCopiedBookingUrl] = useState(false);
+  const [copiedEmbedCode, setCopiedEmbedCode] = useState(false);
 
   const loadTeamAndRoles = async () => {
     setIsLoading(true);
@@ -233,6 +237,127 @@ export default function SettingsPage() {
             <div className="pt-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
               <CheckCircle className="w-3.5 h-3.5" />
               <span>Session secured with HTTP Cookie + JWT expiration guards</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Public Customer Booking & Website Integration */}
+      <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">Public Customer Booking & Website Integration</h2>
+              <p className="text-xs text-muted">
+                Your company’s unique online booking portal. Homeowner requests submitted here route directly to your schedule.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href={`/book/${user?.tenantSlug || 'desert-air'}`}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-primary-glow transition-all"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Open Live Portal</span>
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+          {/* Card A: Direct Clean URL */}
+          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-sky-400" />
+                Dedicated Booking URL
+              </span>
+              <span className="text-[10px] text-muted font-mono">Clean Branded Path</span>
+            </div>
+            <p className="text-[11px] text-muted">
+              Add this link behind your website’s &quot;Book Service&quot; button, your Google Business Profile, or print on equipment QR stickers:
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={typeof window !== 'undefined' ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}` : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`}
+                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-sky-300 font-mono select-all focus:outline-none"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0 text-xs gap-1.5 h-9"
+                onClick={() => {
+                  const url = typeof window !== 'undefined' ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}` : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`;
+                  navigator.clipboard.writeText(url);
+                  setCopiedBookingUrl(true);
+                  setTimeout(() => setCopiedBookingUrl(false), 2000);
+                }}
+              >
+                {copiedBookingUrl ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Card B: Website Embed HTML Code */}
+          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Code className="w-3.5 h-3.5 text-primary" />
+                Website Embed HTML Button
+              </span>
+              <span className="text-[10px] text-muted font-mono">1-Line Snippet</span>
+            </div>
+            <p className="text-[11px] text-muted">
+              Copy and paste this HTML code directly into your WordPress, Squarespace, or Wix website header or footer:
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={`<a href="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/book/${user?.tenantSlug || 'desert-air'}" target="_blank" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Book Service Online →</a>`}
+                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-slate-300 font-mono select-all focus:outline-none truncate"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0 text-xs gap-1.5 h-9"
+                onClick={() => {
+                  const code = `<a href="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/book/${user?.tenantSlug || 'desert-air'}" target="_blank" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Book Service Online →</a>`;
+                  navigator.clipboard.writeText(code);
+                  setCopiedEmbedCode(true);
+                  setTimeout(() => setCopiedEmbedCode(false), 2000);
+                }}
+              >
+                {copiedEmbedCode ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Code</span>
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
