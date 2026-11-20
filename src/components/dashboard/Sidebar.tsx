@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Shield,
   Activity,
+  Target,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -38,32 +39,45 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: '/dashboard',
       icon: LayoutDashboard,
       badge: null,
+      roles: ['owner', 'office_manager', 'dispatcher', 'sales_estimator', 'finance', 'technician'],
     },
     {
       label: 'Unified Inbox',
       href: '/inbox',
       icon: Inbox,
-      badge: '3 new',
+      badge: null,
       badgeColor: 'bg-primary/20 text-primary border-primary/30',
+      roles: ['owner', 'office_manager', 'dispatcher'],
+    },
+    {
+      label: 'Leads & Pipeline',
+      href: '/leads',
+      icon: Target,
+      badge: null,
+      badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      roles: ['owner', 'office_manager', 'dispatcher', 'sales_estimator'],
     },
     {
       label: 'Schedule & Dispatch',
       href: '/schedule',
       icon: CalendarDays,
       badge: null,
+      roles: ['owner', 'office_manager', 'dispatcher'],
     },
     {
       label: 'Customers & CRM',
       href: '/customers',
       icon: Users,
       badge: null,
+      roles: ['owner', 'office_manager', 'dispatcher', 'sales_estimator', 'finance'],
     },
     {
       label: 'Needs Attention',
       href: '/escalations',
       icon: AlertTriangle,
-      badge: '2 urgent',
+      badge: null,
       badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse',
+      roles: ['owner', 'office_manager'],
     },
     {
       label: 'Mobile Field Portal',
@@ -71,14 +85,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: Smartphone,
       badge: roleSlug === 'technician' ? 'Active' : null,
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      roles: ['technician', 'owner', 'office_manager'],
     },
     {
       label: 'Company Settings',
       href: '/settings',
       icon: Settings,
       badge: null,
+      roles: ['owner', 'office_manager'],
     },
   ];
+
+  const visibleNavItems = navItems.filter((item) =>
+    item.roles.includes(roleSlug)
+  );
 
   return (
     <>
@@ -146,7 +166,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             Operations Menu
           </div>
 
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
 

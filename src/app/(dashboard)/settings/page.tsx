@@ -21,6 +21,7 @@ import {
   QrCode,
   Printer,
   Download,
+  Lock,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useAuth } from '@/context/AuthContext';
@@ -86,19 +87,23 @@ export default function SettingsPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
 
+  const isSuperAdminOrOwner = user?.role?.slug === 'owner' || user?.role?.slug === 'office_manager';
+
   const loadTeamAndRoles = async () => {
     setIsLoading(true);
     try {
-      const [usersData, rolesData] = await Promise.all([
-        apiRequest<TeamMember[]>('/users'),
-        apiRequest<PlatformRole[]>('/roles'),
-      ]);
-      setTeam(usersData);
+      const rolesData = await apiRequest<PlatformRole[]>('/roles').catch(() => []);
       setRoles(rolesData);
       if (rolesData.length > 0 && !roleId) {
         // Default to office manager or first non-owner role
         const defaultRole = rolesData.find((r) => r.slug === 'office_manager') || rolesData[0];
         setRoleId(defaultRole.id);
+      }
+
+      // Only query users if user has administrative privileges (owner or office_manager)
+      if (isSuperAdminOrOwner) {
+        const usersData = await apiRequest<TeamMember[]>('/users');
+        setTeam(usersData);
       }
     } catch (err: any) {
       console.error('Failed to load team data:', err);
@@ -109,7 +114,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadTeamAndRoles();
-  }, []);
+  }, [user?.role?.slug]);
 
   const handleInviteStaff = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -595,20 +600,30 @@ export default function SettingsPage() {
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              <span>Operational Workforce ({team.length})</span>
+              <span>Operational Workforce {isSuperAdminOrOwner ? `(${team.length})` : ''}</span>
             </h2>
             <p className="text-xs text-muted mt-0.5">
               Add managers, dispatchers, sales estimators, and field technicians with 24-hour onboarding links.
             </p>
           </div>
 
-          <Button onClick={() => setIsInviteModalOpen(true)} size="sm" className="gap-1.5 text-xs">
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Invite Staff Member</span>
-          </Button>
+          {isSuperAdminOrOwner && (
+            <Button onClick={() => setIsInviteModalOpen(true)} size="sm" className="gap-1.5 text-xs">
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Invite Staff Member</span>
+            </Button>
+          )}
         </div>
 
-        {isLoading ? (
+        {!isSuperAdminOrOwner ? (
+          <div className="p-8 rounded-2xl bg-surface-elevated/40 border border-border text-center space-y-2">
+            <Lock className="w-6 h-6 text-muted mx-auto" />
+            <p className="text-sm font-semibold text-white">Administrative Access Required</p>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+              Staff roster records and onboarding controls are restricted to <strong>Business Owners</strong> and <strong>Office Managers</strong>. Please contact your company administrator to manage team members.
+            </p>
+          </div>
+        ) : isLoading ? (
           <div className="py-10 flex flex-col items-center justify-center text-muted gap-2">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
             <span className="text-xs">Loading team roster...</span>

@@ -614,16 +614,34 @@ export default function SchedulePage() {
 
                           {/* Status Lifecycle Action Buttons */}
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
-                            {j.status === 'SCHEDULED' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full text-xs h-7"
-                                onClick={() => handleUpdateStatus(j.id, 'DISPATCHED')}
-                              >
-                                Dispatch Tech
-                              </Button>
-                            )}
+                            {j.status === 'SCHEDULED' && (() => {
+                              const todayDateStr = new Date().toISOString().split('T')[0];
+                              const jobDateStr = j.scheduledDate ? j.scheduledDate.split('T')[0] : selectedDate;
+                              const isFuture = jobDateStr > todayDateStr;
+                              return (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={`w-full text-xs h-7 transition-all ${
+                                    isFuture
+                                      ? 'border-slate-700/80 text-slate-400 hover:border-amber-500/50 hover:text-amber-300'
+                                      : 'border-primary/40 text-primary hover:bg-primary/10'
+                                  }`}
+                                  onClick={() => {
+                                    if (isFuture) {
+                                      const confirmDispatch = window.confirm(
+                                        `⚠️ Early Dispatch Notice:\n\nThis work order is scheduled for tomorrow (${jobDateStr}).\n\nDispatching now will send an SMS to the customer stating the technician is on the way today.\n\nAre you sure you want to dispatch early?`
+                                      );
+                                      if (!confirmDispatch) return;
+                                    }
+                                    handleUpdateStatus(j.id, 'DISPATCHED');
+                                  }}
+                                >
+                                  <Truck className="w-3 h-3 mr-1.5" />
+                                  <span>{isFuture ? 'Scheduled (Tomorrow)' : 'Dispatch Tech'}</span>
+                                </Button>
+                              );
+                            })()}
                             {j.status === 'DISPATCHED' && (
                               <Button
                                 size="sm"

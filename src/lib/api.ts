@@ -1,6 +1,13 @@
 import { getAuthToken, clearAuthSession } from './auth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+export type ServiceTarget = 'core' | 'voice' | 'ai' | 'workflow';
+
+const SERVICE_BASES: Record<ServiceTarget, string> = {
+  core: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
+  voice: process.env.NEXT_PUBLIC_VOICE_API_URL || 'http://localhost:4002/api/v1',
+  ai: process.env.NEXT_PUBLIC_AI_API_URL || 'http://localhost:4003/api/v1',
+  workflow: process.env.NEXT_PUBLIC_WORKFLOW_API_URL || 'http://localhost:4004/api/v1',
+};
 
 export class ApiError extends Error {
   statusCode: number;
@@ -14,23 +21,30 @@ export class ApiError extends Error {
   }
 }
 
+export interface ApiRequestOptions extends RequestInit {
+  service?: ServiceTarget;
+}
+
 export async function apiRequest<T = any>(
   endpoint: string,
-  options: RequestInit = {}
+  options: ApiRequestOptions = {}
 ): Promise<T> {
+  const { service = 'core', ...fetchOptions } = options;
+  const baseUrl = SERVICE_BASES[service];
   const token = typeof window !== 'undefined' ? getAuthToken() : null;
 
+  const isRaw = fetchOptions.body instanceof Blob || fetchOptions.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...(!isRaw ? { 'Content-Type': 'application/json' } : {}),
+    ...(fetchOptions.headers as Record<string, string>),
   };
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    ...fetchOptions,
     headers,
   });
 
@@ -47,13 +61,14 @@ export async function apiRequest<T = any>(
   }
 
   if (!response.ok || data.success === false) {
+    const errorMsg = data.error?.message || data.message || `Request failed with status ${response.status}`;
     throw new ApiError(
-      data.message || `Request failed with status ${response.status}`,
+      errorMsg,
       response.status,
-      data.errors
+      data.error?.details || data.errors
     );
   }
 
-  return data.data as T;
+  return (data.data !== undefined ? data.data : data) as T;
 }
 
