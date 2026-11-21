@@ -140,10 +140,17 @@ export default function LeadsPage() {
 
             if (!alreadyInLeads) {
               const durationMin = Math.max(1, Math.round(call.durationMs / 60000));
+              const callerMatch =
+                call.summary.match(/(?:Caller|The caller|Customer)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i) ||
+                call.summary.match(/under\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+              const extractedCallerName = callerMatch ? callerMatch[1] : (call.fromNumber ? `Caller (${call.fromNumber})` : 'Inbound Caller');
+              const phoneMatch = call.summary.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+              const extractedPhone = call.fromNumber || (phoneMatch ? phoneMatch[0] : 'Web Call');
+
               mappedLeads.push({
                 id: call.id,
-                name: 'Inbound Caller',
-                phone: call.fromNumber || '+1 (602) 555-0148',
+                name: extractedCallerName,
+                phone: extractedPhone,
                 dateStr: new Date(call.createdAt).toLocaleDateString('en-US', {
                   weekday: 'short',
                   month: 'short',

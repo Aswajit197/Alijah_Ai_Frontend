@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   ExternalLink,
+  Check,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -99,6 +101,31 @@ export default function TechPortalPage() {
     }
   };
 
+  const handleDeclineOffer = async () => {
+    if (!job) return;
+    const confirmed = window.confirm(
+      'Are you sure you want to decline this job offer? Elijah AI will automatically attempt to re-route this job to the next available technician, or notify dispatch.'
+    );
+    if (!confirmed) return;
+
+    setIsUpdating(true);
+    try {
+      await apiRequest(`/jobs/${job.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          technicianId: null,
+          status: 'UNSCHEDULED',
+          notes: (job.notes ? job.notes + ' | ' : '') + 'Offer declined by technician; re-routing needed.',
+        }),
+      });
+      loadActiveJob();
+    } catch (err: any) {
+      alert(`Error declining job: ${err.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleSaveNotes = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!job) return;
@@ -131,6 +158,10 @@ export default function TechPortalPage() {
 
   const getStatusText = (s?: string) => {
     switch (s) {
+      case 'SCHEDULED':
+        return 'Offer Pending Confirmation';
+      case 'DISPATCHED':
+        return 'Dispatched / Accepted';
       case 'EN_ROUTE':
         return 'On Route to Job';
       case 'ON_SITE':
@@ -138,7 +169,7 @@ export default function TechPortalPage() {
       case 'COMPLETED':
         return 'Work Completed';
       default:
-        return 'Dispatched';
+        return s || 'Dispatched';
     }
   };
 
@@ -279,6 +310,38 @@ export default function TechPortalPage() {
             </div>
           )}
 
+          {/* New Job Offer Banner (when status is SCHEDULED) */}
+          {job.status === 'SCHEDULED' && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+              <div className="flex items-center gap-2 text-amber-300 font-semibold text-xs">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>New Job Offer Assigned — Confirm Availability</span>
+              </div>
+              <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                Review the location and time window. Accept to lock into your route, or decline so Elijah AI can re-route this job to another technician.
+              </p>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <Button
+                  variant="outline"
+                  className="text-xs h-10 border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+                  isLoading={isUpdating}
+                  onClick={handleDeclineOffer}
+                >
+                  <X className="w-4 h-4" />
+                  <span>Decline / Release</span>
+                </Button>
+                <Button
+                  className="text-xs h-10 bg-emerald-600 hover:bg-emerald-500 text-white"
+                  isLoading={isUpdating}
+                  onClick={() => handleStatusChange('DISPATCHED')}
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Accept Job Offer</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Field Status Lifecycle Actions */}
           <div className="space-y-2.5 pt-2">
             <div className="grid grid-cols-2 gap-3">
@@ -290,6 +353,12 @@ export default function TechPortalPage() {
                 <Camera className="w-4 h-4" />
                 <span>Add Photos / Notes</span>
               </Button>
+
+              {job.status === 'SCHEDULED' && (
+                <div className="flex items-center justify-center p-2 rounded-xl bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20 text-center">
+                  <span>Pending Acceptance</span>
+                </div>
+              )}
 
               {job.status === 'DISPATCHED' && (
                 <Button
@@ -313,7 +382,7 @@ export default function TechPortalPage() {
                 </Button>
               )}
 
-              {(job.status === 'ON_SITE' || job.status === 'SCHEDULED') && (
+              {job.status === 'ON_SITE' && (
                 <Button
                   className="gap-2 text-xs h-11 bg-emerald-600 hover:bg-emerald-500 shadow-md shadow-emerald-600/30"
                   isLoading={isUpdating}

@@ -27,6 +27,7 @@ import {
   Clock,
   User,
   Flame,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,6 +84,20 @@ export default function CustomersPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddEquipmentModalOpen, setIsAddEquipmentModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Form states - Edit Customer
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState<'RESIDENTIAL' | 'COMMERCIAL'>('RESIDENTIAL');
+  const [editCompany, setEditCompany] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editZip, setEditZip] = useState('');
+  const [editGate, setEditGate] = useState('');
+  const [editAccessNotes, setEditAccessNotes] = useState('');
 
   // Form states - New Customer
   const [custType, setCustType] = useState<'RESIDENTIAL' | 'COMMERCIAL'>('RESIDENTIAL');
@@ -249,6 +264,54 @@ export default function CustomersPage() {
     setEquipSerial('');
     setEquipYear(new Date().getFullYear());
     setEquipLocation('');
+  };
+
+  const openEditCustomerModal = (c: Customer) => {
+    setEditName(c.name || '');
+    setEditType(c.customerType || 'RESIDENTIAL');
+    setEditCompany(c.companyName || '');
+    setEditPhone(c.phone || '');
+    setEditEmail(c.email || '');
+    setEditAddress(c.address || '');
+    setEditCity(c.city || '');
+    setEditState(c.state || '');
+    setEditZip(c.zipCode || '');
+    setEditGate(c.gateCode || '');
+    setEditAccessNotes(c.accessNotes || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer) return;
+    setIsSubmitting(true);
+
+    try {
+      const updated = await apiRequest<Customer>(`/customers/${selectedCustomer.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editName.trim(),
+          customerType: editType,
+          companyName: editType === 'COMMERCIAL' ? editCompany.trim() || undefined : undefined,
+          phone: editPhone.trim(),
+          email: editEmail.trim() || undefined,
+          address: editAddress.trim() || undefined,
+          city: editCity.trim() || undefined,
+          state: editState.trim() || undefined,
+          zipCode: editZip.trim() || undefined,
+          gateCode: editGate.trim() || undefined,
+          accessNotes: editAccessNotes.trim() || undefined,
+        }),
+      });
+
+      setIsEditModalOpen(false);
+      setSelectedCustomer((prev) => (prev ? { ...prev, ...updated } : updated));
+      await loadCustomers();
+    } catch (err: any) {
+      alert(`Failed to update customer: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Counts
@@ -480,12 +543,23 @@ export default function CustomersPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setSelectedCustomer(null)}
-                className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface border border-transparent hover:border-border transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditCustomerModal(selectedCustomer)}
+                  className="gap-1.5 text-xs h-8 border-border hover:border-primary/50 text-slate-200"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-primary" />
+                  <span>Edit Profile</span>
+                </Button>
+                <button
+                  onClick={() => setSelectedCustomer(null)}
+                  className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface border border-transparent hover:border-border transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Drawer Scrollable Content */}
@@ -811,13 +885,24 @@ export default function CustomersPage() {
 
             {/* Drawer Footer Actions */}
             <div className="p-4 border-t border-border bg-surface/80 flex items-center justify-between gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedCustomer(null)}
-              >
-                Close Drawer
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedCustomer(null)}
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditCustomerModal(selectedCustomer)}
+                  className="gap-1.5 text-xs text-slate-200 border-border hover:border-primary/50"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-primary" />
+                  Edit Profile
+                </Button>
+              </div>
 
               <Button
                 size="sm"
@@ -1095,6 +1180,172 @@ export default function CustomersPage() {
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
               Save Equipment Unit
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal 3: Edit Customer Profile */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Profile: ${selectedCustomer?.name || 'Customer'}`}
+        description="Update customer contact details, address, gate code, or access notes if AI misspelled them."
+        maxWidth="2xl"
+      >
+        <form onSubmit={handleUpdateCustomer} className="space-y-4">
+          <div className="flex items-center gap-2 p-1 bg-surface rounded-xl border border-border w-fit">
+            <button
+              type="button"
+              onClick={() => setEditType('RESIDENTIAL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                editType === 'RESIDENTIAL'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-muted hover:text-white'
+              }`}
+            >
+              Residential Homeowner
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditType('COMMERCIAL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                editType === 'COMMERCIAL'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-muted hover:text-white'
+              }`}
+            >
+              Commercial Account
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Full Name *"
+                placeholder="e.g. Jake Chan"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+
+            {editType === 'COMMERCIAL' ? (
+              <div>
+                <Input
+                  label="Company Name"
+                  placeholder="e.g. Chan Enterprises LLC"
+                  value={editCompany}
+                  onChange={(e) => setEditCompany(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div>
+                <Input
+                  label="Phone Number *"
+                  placeholder="e.g. +1 (500) 000-5421"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {editType === 'COMMERCIAL' && (
+              <div>
+                <Input
+                  label="Phone Number *"
+                  placeholder="e.g. +1 (500) 000-5421"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            <div>
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="e.g. jake@example.com"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-border/60">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-primary" />
+              Service Address & Location
+            </h4>
+
+            <div>
+              <Input
+                label="Street Address"
+                placeholder="e.g. 482 Canyon Vista Dr"
+                value={editAddress}
+                onChange={(e) => setEditAddress(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Input
+                  label="City"
+                  placeholder="Phoenix"
+                  value={editCity}
+                  onChange={(e) => setEditCity(e.target.value)}
+                />
+              </div>
+              <div>
+                <Input
+                  label="State"
+                  placeholder="AZ"
+                  value={editState}
+                  onChange={(e) => setEditState(e.target.value)}
+                />
+              </div>
+              <div>
+                <Input
+                  label="ZIP"
+                  placeholder="85004"
+                  value={editZip}
+                  onChange={(e) => setEditZip(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/60">
+            <div>
+              <Input
+                label="Gate / Lockbox Code"
+                placeholder="e.g. #3842 or Box 12"
+                value={editGate}
+                onChange={(e) => setEditGate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Input
+                label="Special Access Notes"
+                placeholder="e.g. Dog in yard, ring side bell"
+                value={editAccessNotes}
+                onChange={(e) => setEditAccessNotes(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+            <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={isSubmitting} className="bg-primary hover:bg-primary-hover shadow-lg shadow-primary-glow">
+              <CheckCircle2 className="w-4 h-4 mr-1.5" />
+              Save Changes
             </Button>
           </div>
         </form>

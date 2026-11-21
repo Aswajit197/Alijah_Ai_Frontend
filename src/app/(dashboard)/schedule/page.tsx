@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   CalendarDays,
   Truck,
@@ -115,6 +116,9 @@ export default function SchedulePage() {
   const [activeJobForDispatch, setActiveJobForDispatch] = useState<Job | null>(null);
   const [dispatchDate, setDispatchDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [detectedWindow, setDetectedWindow] = useState<string | null>(null);
+  const [dispatchServiceAddress, setDispatchServiceAddress] = useState('');
+  const [dispatchGateCode, setDispatchGateCode] = useState('');
+  const [dispatchReportedIssue, setDispatchReportedIssue] = useState('');
 
   // Form states - New Job
   const [selectedCustId, setSelectedCustId] = useState('');
@@ -243,6 +247,9 @@ export default function SchedulePage() {
           scheduledEnd: endIso,
           priority: jobPriority,
           notes: jobNotes.trim() || undefined,
+          serviceAddress: dispatchServiceAddress.trim() || undefined,
+          gateCode: dispatchGateCode.trim() || undefined,
+          reportedIssue: dispatchReportedIssue.trim() || undefined,
         }),
       });
 
@@ -343,6 +350,9 @@ export default function SchedulePage() {
     setJobStartTime(defaultStart);
     setJobEndTime(defaultEnd);
     setJobNotes(cleanNotes);
+    setDispatchServiceAddress(job.serviceAddress || job.customer?.address || '');
+    setDispatchGateCode(job.gateCode || job.customer?.gateCode || '');
+    setDispatchReportedIssue(job.reportedIssue || job.title || '');
     setIsDispatchModalOpen(true);
   };
 
@@ -992,71 +1002,58 @@ export default function SchedulePage() {
                     {activeJobForDispatch.customer.phone}
                   </a>
                 )}
+                <div className="mt-1.5">
+                  <Link
+                    href="/customers"
+                    className="text-[11px] text-sky-400 hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>Edit Profile in Customer CRM</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
               </div>
 
               <div>
-                <span className="text-muted block text-[11px] font-medium">Service Address</span>
-                <p className="text-slate-200 text-xs">
-                  {activeJobForDispatch?.serviceAddress ||
-                    activeJobForDispatch?.customer?.address ||
-                    'No address provided'}
-                </p>
-                {activeJobForDispatch?.serviceAddress && (
-                  <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(
-                      activeJobForDispatch.serviceAddress
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary hover:text-accent inline-flex items-center gap-1.5 text-xs mt-1"
-                  >
-                    <ExternalLink className="w-3 h-3" /> Open in Google Maps
-                  </a>
-                )}
+                <Input
+                  label="Service Address (Editable)"
+                  placeholder="e.g. 100 North Central Avenue, Phoenix, AZ"
+                  value={dispatchServiceAddress}
+                  onChange={(e) => setDispatchServiceAddress(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Badges: Gate Code & Equipment */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
-              {activeJobForDispatch?.gateCode || activeJobForDispatch?.customer?.gateCode ? (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-                  <Key className="w-3.5 h-3.5 text-amber-400" />
-                  <span>
-                    Gate / Lockbox Code:{' '}
-                    <strong className="text-amber-200">
-                      {activeJobForDispatch.gateCode || activeJobForDispatch.customer?.gateCode}
-                    </strong>
-                  </span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-elevated border border-border text-slate-400 text-xs">
-                  <Key className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Gate / Access: Standard Entry</span>
-                </div>
-              )}
+            {/* Gate Code & Equipment */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/50">
+              <div>
+                <Input
+                  label="Gate / Access / Lockbox Code"
+                  placeholder="e.g. #3842 or Keybox 4"
+                  value={dispatchGateCode}
+                  onChange={(e) => setDispatchGateCode(e.target.value)}
+                />
+              </div>
 
               {activeJobForDispatch?.equipment ? (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs font-semibold">
-                  <Wrench className="w-3.5 h-3.5 text-sky-400" />
-                  <span>
-                    Unit:{' '}
-                    <strong className="text-sky-200">{activeJobForDispatch.equipment.name}</strong>{' '}
-                    ({activeJobForDispatch.equipment.brand})
-                  </span>
+                <div className="flex flex-col justify-end">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs font-semibold">
+                    <Wrench className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                    <span>
+                      Unit: <strong className="text-sky-200">{activeJobForDispatch.equipment.name}</strong> ({activeJobForDispatch.equipment.brand})
+                    </span>
+                  </div>
                 </div>
               ) : null}
             </div>
 
-            {/* Full Reported Issue / Problem description - NEVER TRUNCATE */}
-            <div className="p-3 rounded-lg bg-surface-elevated border border-border/80">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Reported Issue & Symptoms
-              </div>
-              <p className="text-xs text-white leading-relaxed">
-                {activeJobForDispatch?.reportedIssue ||
-                  activeJobForDispatch?.title ||
-                  'No issue description provided'}
-              </p>
+            {/* Editable Reported Issue / Problem description */}
+            <div className="pt-2 border-t border-border/50">
+              <Input
+                label="Reported Issue & Symptoms (Editable)"
+                placeholder="e.g. AC stopped cooling, blowing warm air"
+                value={dispatchReportedIssue}
+                onChange={(e) => setDispatchReportedIssue(e.target.value)}
+              />
             </div>
           </div>
 
