@@ -5,6 +5,7 @@ import { Menu, Building2, Bell, Shield, LogOut, ExternalLink } from 'lucide-reac
 import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -33,7 +34,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-surface/80 backdrop-blur-xl border-b border-border px-4 sm:px-6 flex items-center justify-between">
+    <header className="sticky top-0 z-30 h-16 bg-surface/80 backdrop-blur-xl border-b border-border px-4 sm:px-6 flex items-center justify-between shrink-0">
       {/* Left: Mobile hamburger & Active Tenant info */}
       <div className="flex items-center gap-3">
         <button
@@ -81,15 +82,8 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         )}
 
-        {/* Notification Bell */}
-        <button
-          className="relative p-2 rounded-xl text-muted hover:text-white hover:bg-surface-elevated transition-colors"
-          title="AI Notifications"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-ai animate-ping" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-ai" />
-        </button>
+        {/* Notification Bell Dropdown */}
+        <NotificationDropdown />
 
         {/* Sign Out Button */}
         <button

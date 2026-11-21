@@ -45,14 +45,14 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen w-full overflow-hidden bg-background flex">
       {/* Sidebar (Desktop + Mobile slide-over) */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-3 sm:p-5 lg:p-6 w-full mx-auto">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 w-full">
           {children}
         </main>
       </div>

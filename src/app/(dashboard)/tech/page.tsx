@@ -315,15 +315,15 @@ export default function TechPortalPage() {
             </div>
           )}
 
-          {/* New Job Offer Banner (when status is SCHEDULED) */}
-          {job.status === 'SCHEDULED' && (
+          {/* New Job Offer / Assignment Banner */}
+          {(job.status === 'SCHEDULED' || job.status === 'DISPATCHED') && (
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
               <div className="flex items-center gap-2 text-amber-300 font-semibold text-xs">
                 <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>New Job Offer Assigned — Confirm Availability</span>
+                <span>New Job Assignment — Confirm Availability</span>
               </div>
               <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                Review the location and time window. Accept to lock into your route, or decline so Elijah AI can re-route this job to another technician.
+                Review the location and symptoms. Accept and start driving when ready, or decline so Elijah AI can autonomously re-route this work order to another certified technician.
               </p>
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <Button
@@ -333,16 +333,27 @@ export default function TechPortalPage() {
                   onClick={handleDeclineOffer}
                 >
                   <X className="w-4 h-4" />
-                  <span>Decline / Release</span>
+                  <span>Decline / Re-route</span>
                 </Button>
-                <Button
-                  className="text-xs h-10 bg-emerald-600 hover:bg-emerald-500 text-white"
-                  isLoading={isUpdating}
-                  onClick={() => handleStatusChange('DISPATCHED')}
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Accept Job Offer</span>
-                </Button>
+                {job.status === 'SCHEDULED' ? (
+                  <Button
+                    className="text-xs h-10 bg-emerald-600 hover:bg-emerald-500 text-white"
+                    isLoading={isUpdating}
+                    onClick={() => handleStatusChange('DISPATCHED')}
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Accept Job Offer</span>
+                  </Button>
+                ) : (
+                  <Button
+                    className="text-xs h-10 bg-sky-600 hover:bg-sky-500 text-white"
+                    isLoading={isUpdating}
+                    onClick={() => handleStatusChange('EN_ROUTE')}
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>Accept & Drive</span>
+                  </Button>
+                )}
               </div>
             </div>
           )}

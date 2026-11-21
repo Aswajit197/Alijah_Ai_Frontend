@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   CalendarDays,
   Truck,
@@ -101,8 +102,14 @@ interface Job {
   createdAt: string;
 }
 
-export default function SchedulePage() {
+function ScheduleContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const targetJobParam = searchParams?.get('jobId') || searchParams?.get('jobNumber');
+  const [focusedJobId, setFocusedJobId] = useState<string | null>(null);
+  const handledJobParamRef = useRef<string | null>(null);
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
@@ -365,6 +372,108 @@ export default function SchedulePage() {
     setIsDispatchModalOpen(true);
   };
 
+  // Dedicated helper to smoothly center the card inside the scrollable <main> container
+  const scrollCardIntoView = (jobId: string) => {
+    const el = document.getElementById(`job-card-${jobId}`);
+    if (!el) return false;
+
+    // 1. Native scrollIntoView
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    } catch {}
+
+    // 2. Direct parent <main> calculation to guarantee absolute vertical centering
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      const elRect = el.getBoundingClientRect();
+      const mainRect = mainEl.getBoundingClientRect();
+      const targetScrollTop =
+        mainEl.scrollTop + (elRect.top - mainRect.top) - (mainRect.height / 2) + (elRect.height / 2);
+      mainEl.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' });
+    }
+    return true;
+  };
+
+  const triggerCenterScroll = (jobId: string) => {
+    // Staggered triggers to account for DOM render, font painting, and swimlane card expansion
+    [50, 200, 450, 750, 1100].forEach((delay) => {
+      setTimeout(() => {
+        scrollCardIntoView(jobId);
+      }, delay);
+    });
+  };
+
+  // Deep-link auto-focus from Notifications ("View Details")
+  useEffect(() => {
+    if (!targetJobParam) return;
+    if (handledJobParamRef.current === targetJobParam) return;
+
+    let match = jobs.find(
+      (j) =>
+        j.id === targetJobParam ||
+        (j.jobNumber && j.jobNumber.toLowerCase() === targetJobParam.toLowerCase())
+    );
+
+    if (match) {
+      handledJobParamRef.current = targetJobParam;
+      setFocusedJobId(match.id);
+
+      // Clean the query parameter from URL bar so it doesn't persist or re-trigger on subsequent card clicks
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+
+      // Auto-switch selected date if scheduled on a different day
+      if (match.scheduledDate) {
+        const jobDateStr = new Date(match.scheduledDate).toISOString().split('T')[0];
+        if (jobDateStr && jobDateStr !== selectedDate) {
+          setSelectedDate(jobDateStr);
+        }
+      }
+
+      // Staggered scroll to center the card in viewport
+      triggerCenterScroll(match.id);
+
+      // Keep glowing highlight active for 10 seconds
+      const fadeTimer = setTimeout(() => {
+        setFocusedJobId(null);
+      }, 10000);
+
+      return () => {
+        clearTimeout(fadeTimer);
+      };
+    } else if (jobs.length > 0) {
+      // If job is on a different date, fetch it directly
+      apiRequest<Job>(`/jobs/${targetJobParam}`)
+        .then((fetched) => {
+          if (fetched && fetched.id) {
+            handledJobParamRef.current = targetJobParam;
+            if (typeof window !== 'undefined') {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+            if (fetched.scheduledDate) {
+              const d = new Date(fetched.scheduledDate).toISOString().split('T')[0];
+              setSelectedDate(d);
+            }
+            setJobs((prev) => (prev.some((p) => p.id === fetched.id) ? prev : [fetched, ...prev]));
+            setFocusedJobId(fetched.id);
+            triggerCenterScroll(fetched.id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [targetJobParam, jobs]);
+
+  // Dismiss glowing highlight on click anywhere
+  useEffect(() => {
+    if (!focusedJobId) return;
+    const dismissHighlight = () => {
+      setFocusedJobId(null);
+    };
+    window.addEventListener('click', dismissHighlight);
+    return () => window.removeEventListener('click', dismissHighlight);
+  }, [focusedJobId]);
+
   // Slices
   const unscheduledJobs = jobs.filter((j) => j.status === 'UNSCHEDULED');
   const scheduledJobs = jobs.filter((j) => j.status !== 'UNSCHEDULED');
@@ -533,32 +642,40 @@ export default function SchedulePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {unscheduledJobs.map((j) => (
-              <div
-                key={j.id}
-                className="p-3.5 rounded-xl bg-surface/90 border border-amber-500/30 flex flex-col justify-between hover:border-amber-400/50 transition-colors"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[11px] font-bold text-accent">{j.jobNumber || 'JOB'}</span>
-                    {getPriorityBadge(j.priority)}
-                  </div>
-                  <h4 className="font-bold text-white text-xs mt-1.5 line-clamp-2">{j.title}</h4>
-                  <p className="text-[11px] text-muted mt-1 truncate">
-                    {j.customer?.companyName || j.customer?.name} · {j.serviceAddress || 'No address'}
-                  </p>
-                </div>
-
-                <Button
-                  size="sm"
-                  onClick={() => openDispatchDialog(j)}
-                  className="mt-3 text-xs w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+            {unscheduledJobs.map((j) => {
+              const isFocused = focusedJobId === j.id;
+              return (
+                <div
+                  key={j.id}
+                  id={`job-card-${j.id}`}
+                  className={`p-3.5 rounded-xl bg-surface/90 flex flex-col justify-between transition-all duration-300 ${
+                    isFocused
+                      ? 'border-2 border-red-500 ring-4 ring-red-500/50 shadow-2xl shadow-red-500/60 animate-pulse'
+                      : 'border border-amber-500/30 hover:border-amber-400/50'
+                  }`}
                 >
-                  <Truck className="w-3.5 h-3.5 mr-1.5" />
-                  Dispatch Technician
-                </Button>
-              </div>
-            ))}
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[11px] font-bold text-accent">{j.jobNumber || 'JOB'}</span>
+                      {getPriorityBadge(j.priority)}
+                    </div>
+                    <h4 className="font-bold text-white text-xs mt-1.5 line-clamp-2">{j.title}</h4>
+                    <p className="text-[11px] text-muted mt-1 truncate">
+                      {j.customer?.companyName || j.customer?.name} · {j.serviceAddress || 'No address'}
+                    </p>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    onClick={() => openDispatchDialog(j)}
+                    className="mt-3 text-xs w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                  >
+                    <Truck className="w-3.5 h-3.5 mr-1.5" />
+                    Dispatch Technician
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -709,11 +826,20 @@ export default function SchedulePage() {
                         ? new Date(j.scheduledEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : '';
                       const isUpdating = updatingJobId === j.id;
+                      const isFocused = focusedJobId === j.id;
+                      const isEmergency = j.priority === 'EMERGENCY';
 
                       return (
                         <Card
                           key={j.id}
-                          className="space-y-3 bg-surface-card border-border hover:border-border-hover transition-all"
+                          id={`job-card-${j.id}`}
+                          className={`space-y-3 bg-surface-card transition-all duration-300 ${
+                            isFocused
+                              ? isEmergency
+                                ? 'border-2 border-red-500 ring-4 ring-red-500/50 shadow-2xl shadow-red-500/60 animate-pulse'
+                                : 'border-2 border-primary ring-4 ring-primary/50 shadow-2xl shadow-primary/60 animate-pulse'
+                              : 'border-border hover:border-border-hover'
+                          }`}
                         >
                           {/* Card Top */}
                           <div className="flex items-start justify-between gap-2">
@@ -1503,5 +1629,20 @@ export default function SchedulePage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-full w-full flex items-center justify-center p-8 text-xs text-muted">
+          <Loader2 className="w-5 h-5 animate-spin mr-2 text-primary" />
+          Loading schedule board & swimlanes...
+        </div>
+      }
+    >
+      <ScheduleContent />
+    </Suspense>
   );
 }

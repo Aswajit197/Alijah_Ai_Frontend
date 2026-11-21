@@ -470,8 +470,8 @@ export default function LeadsPage() {
 
       {/* 3. Search & Multi-Filter Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface/80 p-3.5 rounded-2xl border border-border">
-        {/* Search */}
-        <div className="relative w-full sm:w-88">
+        {/* Search - flex 1 to expand dynamically */}
+        <div className="relative flex-1 w-full min-w-0">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -483,12 +483,12 @@ export default function LeadsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2.5 w-full sm:w-auto overflow-x-auto">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
           {/* Trade Filter */}
           <select
             value={tradeFilter}
             onChange={(e) => setTradeFilter(e.target.value as any)}
-            className="px-3 py-2 text-xs font-semibold rounded-xl bg-background border border-border text-slate-200 focus:outline-none focus:border-primary cursor-pointer"
+            className="shrink-0 px-3 py-2 text-xs font-semibold rounded-xl bg-background border border-border text-slate-200 focus:outline-none focus:border-primary cursor-pointer"
           >
             <option value="ALL">All Trades</option>
             <option value="HVAC">HVAC</option>
@@ -500,7 +500,7 @@ export default function LeadsPage() {
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
-            className="px-3 py-2 text-xs font-semibold rounded-xl bg-background border border-border text-slate-200 focus:outline-none focus:border-primary cursor-pointer"
+            className="shrink-0 px-3 py-2 text-xs font-semibold rounded-xl bg-background border border-border text-slate-200 focus:outline-none focus:border-primary cursor-pointer"
           >
             <option value="ALL">All Sources</option>
             <option value="Missed call">Missed call</option>
@@ -510,7 +510,7 @@ export default function LeadsPage() {
             <option value="Equipment QR">Equipment QR</option>
           </select>
 
-          <span className="text-xs text-slate-400 shrink-0 font-medium">
+          <span className="text-xs text-slate-400 shrink-0 font-medium whitespace-nowrap">
             Showing <strong className="text-white font-bold">{filteredLeads.length}</strong> leads
           </span>
         </div>
