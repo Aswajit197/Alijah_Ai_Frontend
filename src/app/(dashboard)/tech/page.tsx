@@ -104,20 +104,25 @@ export default function TechPortalPage() {
   const handleDeclineOffer = async () => {
     if (!job) return;
     const confirmed = window.confirm(
-      'Are you sure you want to decline this job offer? Elijah AI will automatically attempt to re-route this job to the next available technician, or notify dispatch.'
+      'Are you sure you want to decline this job offer? Elijah AI will automatically attempt to re-route this job to the next available technician.'
     );
     if (!confirmed) return;
 
     setIsUpdating(true);
     try {
-      await apiRequest(`/jobs/${job.id}`, {
-        method: 'PATCH',
+      const res = await apiRequest<{
+        reassigned: boolean;
+        escalated: boolean;
+        newTechnician: string | null;
+        message: string;
+      }>(`/jobs/${job.id}/decline`, {
+        method: 'POST',
         body: JSON.stringify({
-          technicianId: null,
-          status: 'UNSCHEDULED',
-          notes: (job.notes ? job.notes + ' | ' : '') + 'Offer declined by technician; re-routing needed.',
+          reason: 'Technician route conflict / Unavailable',
         }),
       });
+
+      alert(`⚡ Autonomous Dispatch:\n\n${res.message}`);
       loadActiveJob();
     } catch (err: any) {
       alert(`Error declining job: ${err.message}`);

@@ -24,6 +24,7 @@ import {
   X,
   Phone,
   Flame,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,8 +107,10 @@ export default function SchedulePage() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [viewFilter, setViewFilter] = useState<'ALL' | 'ACTIVE' | 'AVAILABLE'>('ALL');
   const [error, setError] = useState<string | null>(null);
 
   // Modal states
@@ -138,8 +141,10 @@ export default function SchedulePage() {
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
 
   // Load jobs, technicians & customers
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (showLoadingSpinner: boolean = false) => {
+    if (showLoadingSpinner) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const [jobsData, techsData, custsData] = await Promise.all([
@@ -153,23 +158,18 @@ export default function SchedulePage() {
     } catch (err: any) {
       setError(err.message || 'Failed to load scheduling data');
     } finally {
-      setIsLoading(false);
+      if (showLoadingSpinner) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, [selectedDate, statusFilter]);
 
   // Selected customer for modal
   const activeCustomer = customers.find((c) => c.id === selectedCustId);
-
-  // Sorted technicians: Certified field technicians first
-  const sortedTechnicians = [...technicians].sort((a, b) => {
-    const aIsTech = a.role?.slug === 'technician' || a.role?.name?.toLowerCase().includes('tech') ? 0 : 1;
-    const bIsTech = b.role?.slug === 'technician' || b.role?.name?.toLowerCase().includes('tech') ? 0 : 1;
-    return aIsTech - bIsTech;
-  });
 
   const selectedTechObj = technicians.find((t) => t.id === assignedTechId);
 
@@ -220,7 +220,7 @@ export default function SchedulePage() {
 
       setIsNewJobModalOpen(false);
       resetJobForm();
-      loadData();
+      await loadData(false);
     } catch (err: any) {
       alert(`Error creating work order: ${err.message}`);
     } finally {
@@ -255,7 +255,7 @@ export default function SchedulePage() {
 
       setIsDispatchModalOpen(false);
       setActiveJobForDispatch(null);
-      loadData();
+      await loadData(false);
     } catch (err: any) {
       alert(`Error dispatching job: ${err.message}`);
     } finally {
@@ -264,14 +264,23 @@ export default function SchedulePage() {
   };
 
   const handleUpdateStatus = async (jobId: string, newStatus: string) => {
+    setUpdatingJobId(jobId);
+    // Optimistic UI update: instantly update status without unmounting/flashing the screen
+    setJobs((prev) =>
+      prev.map((j) => (j.id === jobId ? { ...j, status: newStatus as any } : j))
+    );
+
     try {
       await apiRequest(`/jobs/${jobId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: newStatus }),
       });
-      loadData();
+      await loadData(false); // Silent background sync
     } catch (err: any) {
       alert(`Failed to update status: ${err.message}`);
+      await loadData(false);
+    } finally {
+      setUpdatingJobId(null);
     }
   };
 
@@ -359,6 +368,51 @@ export default function SchedulePage() {
   // Slices
   const unscheduledJobs = jobs.filter((j) => j.status === 'UNSCHEDULED');
   const scheduledJobs = jobs.filter((j) => j.status !== 'UNSCHEDULED');
+
+  // Sorted technicians:
+  // 1. Technicians with assigned jobs on this date show FIRST!
+  // 2. Pure field technicians show before office roles
+  // 3. Alphabetical
+  const sortedTechnicians = [...technicians].sort((a, b) => {
+    const aJobs = scheduledJobs.filter((j) => j.technicianId === a.id).length;
+    const bJobs = scheduledJobs.filter((j) => j.technicianId === b.id).length;
+
+    // Rule 1: Highest job count first (Technicians with active jobs appear first!)
+    if (bJobs !== aJobs) {
+      return bJobs - aJobs;
+    }
+
+    // Rule 2: Dedicated technicians before office roles
+    const aIsTech = a.role?.slug === 'technician' || a.role?.name?.toLowerCase().includes('tech') ? 1 : 0;
+    const bIsTech = b.role?.slug === 'technician' || b.role?.name?.toLowerCase().includes('tech') ? 1 : 0;
+    if (bIsTech !== aIsTech) {
+      return bIsTech - aIsTech;
+    }
+
+    // Rule 3: Name alphabetical
+    return a.name.localeCompare(b.name);
+  });
+
+  // Filter out office accounts (owner, dispatcher, sales_estimator) IF they have 0 jobs scheduled
+  // (Office staff should only take up a swimlane if an actual work order was assigned to them)
+  const relevantTechnicians = sortedTechnicians.filter((tech) => {
+    const jobCount = scheduledJobs.filter((j) => j.technicianId === tech.id).length;
+    if (jobCount > 0) return true;
+    return tech.role?.slug === 'technician' || tech.role?.name?.toLowerCase().includes('tech');
+  });
+
+  const activeTechCount = relevantTechnicians.filter((t) =>
+    scheduledJobs.some((j) => j.technicianId === t.id)
+  ).length;
+  const availableTechCount = relevantTechnicians.length - activeTechCount;
+
+  // Filter based on selected view tab
+  const displayedTechnicians = relevantTechnicians.filter((tech) => {
+    const hasJobs = scheduledJobs.some((j) => j.technicianId === tech.id);
+    if (viewFilter === 'ACTIVE') return hasJobs;
+    if (viewFilter === 'AVAILABLE') return !hasJobs;
+    return true;
+  });
 
   const getPriorityBadge = (p: string) => {
     switch (p) {
@@ -509,21 +563,73 @@ export default function SchedulePage() {
         </div>
       )}
 
+      {/* Swimlane Filter Tabs & Metric Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+        <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl">
+          <button
+            onClick={() => setViewFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewFilter === 'ALL'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-white'
+            }`}
+          >
+            All Swimlanes ({relevantTechnicians.length})
+          </button>
+          <button
+            onClick={() => setViewFilter('ACTIVE')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              viewFilter === 'ACTIVE'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-white'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-sky-400" />
+            Active Assigned ({activeTechCount})
+          </button>
+          <button
+            onClick={() => setViewFilter('AVAILABLE')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              viewFilter === 'AVAILABLE'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-white'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Available / Idle ({availableTechCount})
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+            Available
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />
+            Active Job
+          </span>
+          <span className="hidden md:inline text-[11px] text-slate-500 font-mono">
+            Sorted by Active Jobs First
+          </span>
+        </div>
+      </div>
+
       {/* Technician Swimlanes */}
       {isLoading ? (
         <div className="py-24 text-center text-muted text-xs">
           <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/40 animate-pulse mx-auto mb-3" />
           Loading technician swimlanes & work orders...
         </div>
-      ) : technicians.length === 0 ? (
+      ) : displayedTechnicians.length === 0 ? (
         <div className="py-16 text-center text-muted rounded-2xl bg-surface border border-border">
           <User className="w-8 h-8 mx-auto mb-2 text-subtle" />
-          <p className="text-sm font-bold text-white">No active technicians found</p>
-          <p className="text-xs text-muted mt-1">Invite team members with the 'technician' role in Settings.</p>
+          <p className="text-sm font-bold text-white">No matching technicians</p>
+          <p className="text-xs text-muted mt-1">Try switching to 'All Swimlanes' tab or assign a work order.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
-          {technicians.map((tech) => {
+          {displayedTechnicians.map((tech) => {
             const techJobs = scheduledJobs.filter((j) => j.technicianId === tech.id);
 
             return (
@@ -538,25 +644,61 @@ export default function SchedulePage() {
                       {tech.name.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-white text-sm">{tech.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-white text-sm">{tech.name}</h3>
+                        {techJobs.length > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" title="Active on job" />
+                        )}
+                      </div>
                       <span className="text-[10px] font-mono text-ai uppercase font-semibold">
                         {tech.role?.name || 'Technician'}
                       </span>
                     </div>
                   </div>
 
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-card border border-border text-slate-300">
-                    {techJobs.length} Jobs
-                  </span>
+                  {techJobs.length > 0 ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {techJobs.length} {techJobs.length === 1 ? 'Job' : 'Jobs'}
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Available
+                    </span>
+                  )}
                 </div>
 
                 {/* Scheduled Jobs in this Lane */}
                 <div className="p-4 space-y-3 min-h-[300px]">
                   {techJobs.length === 0 ? (
-                    <div className="h-40 rounded-2xl border border-dashed border-border/80 flex flex-col items-center justify-center text-center p-4 text-subtle text-xs">
-                      <Clock className="w-6 h-6 mb-1 text-subtle/50" />
-                      <span>Available for dispatch</span>
-                      <span className="text-[10px] text-muted">No scheduled jobs on this date</span>
+                    <div className="rounded-2xl border border-dashed border-border/80 bg-surface-card/40 p-5 flex flex-col items-center text-center justify-between space-y-4 min-h-[220px]">
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Available for Dispatch
+                        </div>
+                        <p className="text-xs font-semibold text-slate-300">
+                          Full Day Shift Open
+                        </p>
+                        <p className="text-[11px] text-muted max-w-[200px]">
+                          08:00 AM – 06:00 PM · No active assignments on this date
+                        </p>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          resetJobForm();
+                          setAssignedTechId(tech.id);
+                          setIsNewJobModalOpen(true);
+                        }}
+                        className="w-full text-xs border-dashed border-primary/40 text-primary hover:bg-primary/10 hover:border-primary transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1.5" />
+                        Dispatch to {tech.name.split(' ')[0]}
+                      </Button>
                     </div>
                   ) : (
                     techJobs.map((j) => {
@@ -566,6 +708,7 @@ export default function SchedulePage() {
                       const endTime = j.scheduledEnd
                         ? new Date(j.scheduledEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : '';
+                      const isUpdating = updatingJobId === j.id;
 
                       return (
                         <Card
@@ -632,6 +775,7 @@ export default function SchedulePage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  disabled={isUpdating}
                                   className={`w-full text-xs h-7 transition-all ${
                                     isFuture
                                       ? 'border-slate-700/80 text-slate-400 hover:border-amber-500/50 hover:text-amber-300'
@@ -647,41 +791,59 @@ export default function SchedulePage() {
                                     handleUpdateStatus(j.id, 'DISPATCHED');
                                   }}
                                 >
-                                  <Truck className="w-3 h-3 mr-1.5" />
-                                  <span>{isFuture ? 'Scheduled (Tomorrow)' : 'Dispatch Tech'}</span>
+                                  {isUpdating ? (
+                                    <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                                  ) : (
+                                    <Truck className="w-3 h-3 mr-1.5" />
+                                  )}
+                                  <span>{isUpdating ? 'Dispatching...' : isFuture ? 'Scheduled (Tomorrow)' : 'Dispatch Tech'}</span>
                                 </Button>
                               );
                             })()}
                             {j.status === 'DISPATCHED' && (
                               <Button
                                 size="sm"
-                                className="w-full text-xs h-7 bg-sky-600 hover:bg-sky-500"
+                                disabled={isUpdating}
+                                className="w-full text-xs h-7 bg-sky-600 hover:bg-sky-500 font-semibold"
                                 onClick={() => handleUpdateStatus(j.id, 'EN_ROUTE')}
                               >
-                                Mark En Route
+                                {isUpdating ? (
+                                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                                ) : null}
+                                <span>{isUpdating ? 'Updating...' : 'Mark En Route'}</span>
                               </Button>
                             )}
                             {j.status === 'EN_ROUTE' && (
                               <Button
                                 size="sm"
-                                className="w-full text-xs h-7 bg-primary hover:bg-primary-hover"
+                                disabled={isUpdating}
+                                className="w-full text-xs h-7 bg-primary hover:bg-primary-hover font-semibold"
                                 onClick={() => handleUpdateStatus(j.id, 'ON_SITE')}
                               >
-                                Mark On Site
+                                {isUpdating ? (
+                                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                                ) : null}
+                                <span>{isUpdating ? 'Updating...' : 'Mark On Site'}</span>
                               </Button>
                             )}
                             {j.status === 'ON_SITE' && (
                               <Button
                                 size="sm"
-                                className="w-full text-xs h-7 bg-emerald-600 hover:bg-emerald-500"
+                                disabled={isUpdating}
+                                className="w-full text-xs h-7 bg-emerald-600 hover:bg-emerald-500 font-bold shadow-md shadow-emerald-950/40"
                                 onClick={() => handleUpdateStatus(j.id, 'COMPLETED')}
                               >
-                                Complete Work Order
+                                {isUpdating ? (
+                                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                )}
+                                <span>{isUpdating ? 'Completing...' : 'Complete Work Order'}</span>
                               </Button>
                             )}
                             {j.status === 'COMPLETED' && (
-                              <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                                 Done & Invoiced
                               </span>
                             )}

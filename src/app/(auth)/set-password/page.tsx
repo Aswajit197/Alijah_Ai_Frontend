@@ -36,6 +36,7 @@ function SetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const isResetFlow = searchParams.get('type') === 'reset';
   const { login } = useAuth();
 
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
@@ -164,9 +165,11 @@ function SetPasswordForm() {
           </div>
 
           <div>
-            <h1 className="text-xl font-bold text-white">Password Activated!</h1>
+            <h1 className="text-xl font-bold text-white">
+              {isResetFlow ? 'Password Reset Complete!' : 'Password Activated!'}
+            </h1>
             <p className="text-xs text-muted mt-2">
-              Welcome to <strong>{invitation.tenantName}</strong>. Launching your operations dashboard...
+              Welcome back to <strong>{invitation.tenantName}</strong>. Launching your operations dashboard...
             </p>
           </div>
 
@@ -190,7 +193,7 @@ function SetPasswordForm() {
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-elevated border border-border/80 text-xs text-slate-300 mb-3 shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-ai" />
-            <span>Onboarding & Account Activation</span>
+            <span>{isResetFlow ? 'Password Recovery & Security' : 'Onboarding & Account Activation'}</span>
           </div>
 
           <div className="flex items-center justify-center gap-2.5">
@@ -207,7 +210,7 @@ function SetPasswordForm() {
           <div className="p-4 rounded-2xl bg-surface-card border border-border/80 mb-6 flex items-start justify-between gap-4">
             <div>
               <span className="text-[10px] font-mono uppercase text-muted tracking-wider">
-                Invitation For
+                {isResetFlow ? 'Password Reset For' : 'Invitation For'}
               </span>
               <h2 className="text-base font-bold text-white">{invitation.name}</h2>
               <p className="text-xs text-slate-300 mt-0.5">{invitation.email}</p>
@@ -227,7 +230,11 @@ function SetPasswordForm() {
           {/* Expiration warning banner */}
           <div className="mb-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-xs text-amber-400">
             <Clock className="w-4 h-4 shrink-0" />
-            <span>Single-use invitation link · Valid for 24 hours</span>
+            <span>
+              {isResetFlow
+                ? 'Single-use security reset token · Valid for 1 hour'
+                : 'Single-use invitation link · Valid for 24 hours'}
+            </span>
           </div>
 
           {submitError && (

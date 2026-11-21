@@ -22,6 +22,9 @@ import {
   Printer,
   Download,
   Lock,
+  Bot,
+  Zap,
+  SlidersHorizontal,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useAuth } from '@/context/AuthContext';
@@ -87,6 +90,49 @@ export default function SettingsPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
 
+  // Operational Dispatch Policy State (Rule 1: dispatch.assign)
+  const [dispatchPolicy, setDispatchPolicy] = useState<'ALLOW' | 'RECOMMEND'>('ALLOW');
+  const [invoiceLimit, setInvoiceLimit] = useState<number>(5000);
+  const [emergencyTimeout, setEmergencyTimeout] = useState<number>(10);
+  const [isSavingPolicy, setIsSavingPolicy] = useState(false);
+  const [policySavedFeedback, setPolicySavedFeedback] = useState(false);
+
+  const loadCompanySettings = async () => {
+    try {
+      const res = await apiRequest<any>('/auth/company-settings');
+      if (res) {
+        if (res.dispatchPolicy) setDispatchPolicy(res.dispatchPolicy);
+        if (res.invoiceApprovalThreshold) setInvoiceLimit(res.invoiceApprovalThreshold);
+        if (res.emergencyPageTimeoutMinutes) setEmergencyTimeout(res.emergencyPageTimeoutMinutes);
+      }
+    } catch (e) {
+      console.error('Failed to load company settings:', e);
+    }
+  };
+
+  const handleSavePolicy = async (newPolicy?: 'ALLOW' | 'RECOMMEND') => {
+    const policyToSave = newPolicy || dispatchPolicy;
+    setIsSavingPolicy(true);
+    setPolicySavedFeedback(false);
+    try {
+      await apiRequest('/auth/company-settings', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          dispatchPolicy: policyToSave,
+          invoiceApprovalThreshold: invoiceLimit,
+          emergencyPageTimeoutMinutes: emergencyTimeout,
+        }),
+      });
+      if (newPolicy) setDispatchPolicy(newPolicy);
+      setPolicySavedFeedback(true);
+      setTimeout(() => setPolicySavedFeedback(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to update company settings:', err);
+    } finally {
+      setIsSavingPolicy(false);
+    }
+  };
+
   const isSuperAdminOrOwner = user?.role?.slug === 'owner' || user?.role?.slug === 'office_manager';
 
   const loadTeamAndRoles = async () => {
@@ -114,6 +160,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadTeamAndRoles();
+    loadCompanySettings();
   }, [user?.role?.slug]);
 
   const handleInviteStaff = async (e: React.FormEvent) => {
@@ -331,121 +378,322 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-          <Settings className="w-6 h-6 text-primary" />
-          <span>Company Settings & Staff</span>
-        </h1>
-        <p className="text-xs text-muted mt-1">
-          Manage your organization parameters, operational workforce, and team onboarding.
-        </p>
+    <div className="space-y-8 w-full max-w-7xl mx-auto pb-12">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-ai flex items-center justify-center text-white shadow-md shadow-primary-glow shrink-0">
+              <Settings className="w-5 h-5" />
+            </div>
+            <span>Company Settings & Operations Hub</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1.5">
+            Manage organization parameters, customer booking links, physical QR tags, and team roster permissions.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="px-3.5 py-1.5 rounded-xl bg-surface-card border border-border text-xs font-mono text-slate-300">
+            Tenant: <strong className="text-accent">{user?.tenantSlug || 'vanguard-electric'}</strong>
+          </span>
+        </div>
       </div>
 
       {/* Profile & Security Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Company Profile Card */}
-        <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-border">
+        <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-5 shadow-xl">
+          <div className="flex items-center gap-2.5 pb-4 border-b border-border">
             <Building2 className="w-5 h-5 text-primary" />
-            <h2 className="text-sm font-bold text-white">Company Profile</h2>
+            <h2 className="text-base font-bold text-white">Company Profile</h2>
           </div>
 
-          <div className="space-y-3 text-xs">
+          <div className="space-y-4">
             <div>
-              <span className="text-muted block text-[11px]">Organization Name</span>
-              <span className="text-white font-semibold text-sm">
-                {user?.tenantName || 'Desert Air HVAC & Plumbing'}
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                Organization Name
+              </span>
+              <span className="text-lg font-bold text-white">
+                {user?.tenantName || 'Vanguard Electric & Power'}
               </span>
             </div>
 
             <div>
-              <span className="text-muted block text-[11px]">Tenant Identifier / Slug</span>
-              <span className="text-accent font-mono bg-surface-elevated px-2 py-0.5 rounded border border-border">
-                {user?.tenantSlug || 'desert-air'}
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                Tenant Identifier / Subdomain Slug
+              </span>
+              <span className="inline-block text-accent font-mono font-bold bg-surface-elevated px-3 py-1 rounded-xl border border-border text-xs">
+                {user?.tenantSlug || 'vanguard-electric'}
               </span>
             </div>
 
             <div>
-              <span className="text-muted block text-[11px]">Primary Location</span>
-              <span className="text-slate-300">Las Vegas & Henderson, NV</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                Primary Service Region
+              </span>
+              <span className="text-sm font-semibold text-slate-200">
+                Phoenix & Scottsdale Metropolitan Area, AZ
+              </span>
             </div>
           </div>
         </div>
 
         {/* User Session Security */}
-        <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-border">
+        <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-5 shadow-xl">
+          <div className="flex items-center gap-2.5 pb-4 border-b border-border">
             <Shield className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-bold text-white">Security & Active Session</h2>
+            <h2 className="text-base font-bold text-white">Security & Active Session</h2>
           </div>
 
-          <div className="space-y-3 text-xs">
+          <div className="space-y-4">
             <div>
-              <span className="text-muted block text-[11px]">Signed In As</span>
-              <span className="text-white font-semibold">
-                {user?.name} ({user?.email})
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                Signed In Operator
+              </span>
+              <span className="text-base font-bold text-white">
+                {user?.name}{' '}
+                <span className="text-xs font-mono text-slate-400 font-normal">
+                  ({user?.email})
+                </span>
               </span>
             </div>
 
-            <div>
-              <span className="text-muted block text-[11px]">Assigned Role</span>
-              <span className="text-emerald-400 font-semibold capitalize">{user?.role?.name}</span>
+            <div className="flex items-center gap-6">
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Assigned Role
+                </span>
+                <span className="inline-block px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold capitalize">
+                  {user?.role?.name || 'Business Owner'}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Approval Limit
+                </span>
+                <span className="text-sm text-slate-200 font-mono font-bold">
+                  ${Number(user?.role?.approvalLimit || 0).toLocaleString()} USD
+                </span>
+              </div>
             </div>
 
+            <div className="pt-2 flex items-center gap-2 text-xs text-emerald-400 font-medium">
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              <span>Session secured with HTTP-Only Cookie + 256-bit JWT guards</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Rule 1: The Company Operational Dispatch Policy (dispatch.assign) */}
+      <div className="p-6 sm:p-7 rounded-3xl bg-surface/90 border border-border space-y-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0">
+              <Bot className="w-6 h-6" />
+            </div>
             <div>
-              <span className="text-muted block text-[11px]">Approval Limit</span>
-              <span className="text-slate-300 font-mono">
-                ${Number(user?.role?.approvalLimit || 0).toLocaleString()} USD
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white">
+                  Autonomous AI Dispatch Policy
+                </h2>
+                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-surface-elevated text-accent border border-border font-bold">
+                  Rule 1: dispatch.assign
+                </span>
+              </div>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Configure operational dispatch mode: whether incoming customer requests auto-assign or queue for dispatcher review.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {policySavedFeedback && (
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 rounded-xl animate-fade-in">
+                <Check className="w-3.5 h-3.5" /> Policy Active
+              </span>
+            )}
+            <Button
+              size="sm"
+              disabled={isSavingPolicy}
+              onClick={() => handleSavePolicy()}
+              className="bg-primary hover:bg-primary-hover text-white font-bold h-9 px-4 rounded-xl shadow-md"
+            >
+              {isSavingPolicy ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
+              <span>Save Policy</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* 2 Operational Mode Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Autonomous AI Dispatch Card */}
+          <div
+            onClick={() => {
+              setDispatchPolicy('ALLOW');
+              handleSavePolicy('ALLOW');
+            }}
+            className={`cursor-pointer p-5 rounded-2xl border transition-all relative overflow-hidden ${
+              dispatchPolicy === 'ALLOW'
+                ? 'bg-blue-950/20 border-blue-500/60 shadow-lg shadow-blue-950/30 ring-1 ring-blue-500/50'
+                : 'bg-surface-elevated/40 border-border hover:border-slate-700 hover:bg-surface-elevated/70'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                  dispatchPolicy === 'ALLOW' ? 'bg-blue-600 text-white' : 'bg-surface text-slate-400 border border-border'
+                }`}>
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Autonomous AI Dispatch</h3>
+                  <span className="text-[11px] font-mono text-blue-400 uppercase tracking-wider font-semibold">ALLOW</span>
+                </div>
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                dispatchPolicy === 'ALLOW'
+                  ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                  : 'bg-surface text-slate-500 border-border'
+              }`}>
+                {dispatchPolicy === 'ALLOW' ? 'ACTIVE' : 'SELECT'}
               </span>
             </div>
 
-            <div className="pt-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span>Session secured with HTTP Cookie + JWT expiration guards</span>
+            <p className="text-xs text-slate-300 leading-relaxed mb-3">
+              Elijah AI immediately evaluates technician trade skills, distance, and daily workload, and <strong>instantly auto-dispatches</strong> the #1 ranked technician without human intervention.
+            </p>
+
+            <div className="pt-3 border-t border-slate-800/60 flex items-center gap-2 text-[11px] text-slate-400">
+              <CheckCircle className={`w-3.5 h-3.5 ${dispatchPolicy === 'ALLOW' ? 'text-blue-400' : 'text-slate-600'}`} />
+              <span>Instant mobile dispatch alert & 10-min acceptance timer</span>
+            </div>
+          </div>
+
+          {/* Human Dispatcher Triage Card */}
+          <div
+            onClick={() => {
+              setDispatchPolicy('RECOMMEND');
+              handleSavePolicy('RECOMMEND');
+            }}
+            className={`cursor-pointer p-5 rounded-2xl border transition-all relative overflow-hidden ${
+              dispatchPolicy === 'RECOMMEND'
+                ? 'bg-amber-950/20 border-amber-500/60 shadow-lg shadow-amber-950/30 ring-1 ring-amber-500/50'
+                : 'bg-surface-elevated/40 border-border hover:border-slate-700 hover:bg-surface-elevated/70'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                  dispatchPolicy === 'RECOMMEND' ? 'bg-amber-600 text-white' : 'bg-surface text-slate-400 border border-border'
+                }`}>
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Human Dispatcher Triage</h3>
+                  <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider font-semibold">RECOMMEND</span>
+                </div>
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                dispatchPolicy === 'RECOMMEND'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  : 'bg-surface text-slate-500 border-border'
+              }`}>
+                {dispatchPolicy === 'RECOMMEND' ? 'ACTIVE' : 'SELECT'}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed mb-3">
+              Elijah AI calculates top technician recommendations, but places work orders into the <strong>Unassigned Triage Queue</strong> on your Schedule Board for a human dispatcher to review and approve.
+            </p>
+
+            <div className="pt-3 border-t border-slate-800/60 flex items-center gap-2 text-[11px] text-slate-400">
+              <CheckCircle className={`w-3.5 h-3.5 ${dispatchPolicy === 'RECOMMEND' ? 'text-amber-400' : 'text-slate-600'}`} />
+              <span>Full dispatcher control with AI candidate scoring hints</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Operational Guardrails (Invoice limit & Emergency Timeout) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border">
+          <div className="p-4 rounded-2xl bg-surface-elevated/50 border border-border flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-white block">Invoice Approval Threshold</span>
+              <span className="text-[11px] text-slate-400">Invoices above this threshold require Owner sign-off (`invoice.send`)</span>
+            </div>
+            <div className="w-32 flex items-center gap-1.5">
+              <span className="text-slate-400 text-xs font-bold">$</span>
+              <input
+                type="number"
+                value={invoiceLimit}
+                onChange={(e) => setInvoiceLimit(Number(e.target.value))}
+                className="w-full bg-surface border border-border rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-surface-elevated/50 border border-border flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-white block">Emergency Page Timeout</span>
+              <span className="text-[11px] text-slate-400">Minutes before escalating to next on-call technician</span>
+            </div>
+            <div className="w-24 flex items-center gap-1.5">
+              <input
+                type="number"
+                value={emergencyTimeout}
+                onChange={(e) => setEmergencyTimeout(Number(e.target.value))}
+                className="w-full bg-surface border border-border rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-primary"
+              />
+              <span className="text-slate-400 text-xs font-bold">min</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Public Customer Booking & Website Integration */}
-      <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-              <Globe className="w-5 h-5" />
+      <div className="p-6 sm:p-7 rounded-3xl bg-surface/90 border border-border space-y-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-center text-primary shrink-0">
+              <Globe className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Public Customer Booking & Website Integration</h2>
-              <p className="text-xs text-muted">
+              <h2 className="text-lg font-bold text-white">
+                Public Customer Booking & Website Integration
+              </h2>
+              <p className="text-sm text-slate-400 mt-0.5">
                 Your company’s unique online booking portal. Homeowner requests submitted here route directly to your schedule.
               </p>
             </div>
           </div>
 
           <a
-            href={`/book/${user?.tenantSlug || 'desert-air'}`}
+            href={`/book/${user?.tenantSlug || 'vanguard-electric'}`}
             target="_blank"
             rel="noreferrer"
-            className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-primary-glow transition-all"
+            className="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-primary-glow transition-all shrink-0"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-4 h-4" />
             <span>Open Live Portal</span>
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
           {/* Card A: Direct Clean URL */}
-          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5 flex flex-col justify-between">
-            <div className="space-y-2.5">
+          <div className="p-5 rounded-2xl bg-surface-elevated/80 border border-border space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-sky-400" />
+                <span className="text-sm font-bold text-white flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-sky-400" />
                   Dedicated Booking URL
                 </span>
-                <span className="text-[10px] text-muted font-mono">Clean Branded Path</span>
+                <span className="text-xs text-sky-400/90 font-mono font-semibold bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+                  Clean Link
+                </span>
               </div>
-              <p className="text-[11px] text-muted">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 Add this link behind your website’s &quot;Book Service&quot; button, your Google Business Profile, or emails:
               </p>
             </div>
@@ -453,16 +701,23 @@ export default function SettingsPage() {
               <input
                 type="text"
                 readOnly
-                value={typeof window !== 'undefined' ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}` : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-sky-300 font-mono select-all focus:outline-none truncate"
+                value={
+                  typeof window !== 'undefined'
+                    ? `${window.location.origin}/book/${user?.tenantSlug || 'vanguard-electric'}`
+                    : `http://localhost:3000/book/${user?.tenantSlug || 'vanguard-electric'}`
+                }
+                className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-sky-300 font-mono select-all focus:outline-none"
               />
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="shrink-0 text-xs gap-1.5 h-9"
+                className="shrink-0 text-xs font-bold gap-1.5 h-10 px-3.5"
                 onClick={() => {
-                  const url = typeof window !== 'undefined' ? `${window.location.origin}/book/${user?.tenantSlug || 'desert-air'}` : `http://localhost:3000/book/${user?.tenantSlug || 'desert-air'}`;
+                  const url =
+                    typeof window !== 'undefined'
+                      ? `${window.location.origin}/book/${user?.tenantSlug || 'vanguard-electric'}`
+                      : `http://localhost:3000/book/${user?.tenantSlug || 'vanguard-electric'}`;
                   navigator.clipboard.writeText(url);
                   setCopiedBookingUrl(true);
                   setTimeout(() => setCopiedBookingUrl(false), 2000);
@@ -470,12 +725,12 @@ export default function SettingsPage() {
               >
                 {copiedBookingUrl ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <Check className="w-4 h-4 text-emerald-400" />
                     <span>Copied!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-4 h-4" />
                     <span>Copy</span>
                   </>
                 )}
@@ -484,33 +739,35 @@ export default function SettingsPage() {
           </div>
 
           {/* Card B: Website Embed HTML Code */}
-          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5 flex flex-col justify-between">
-            <div className="space-y-2.5">
+          <div className="p-5 rounded-2xl bg-surface-elevated/80 border border-border space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Code className="w-3.5 h-3.5 text-primary" />
+                <span className="text-sm font-bold text-white flex items-center gap-2">
+                  <Code className="w-4 h-4 text-primary" />
                   Website Embed Button
                 </span>
-                <span className="text-[10px] text-muted font-mono">1-Line Snippet</span>
+                <span className="text-xs text-indigo-400/90 font-mono font-semibold bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                  1-Line Snippet
+                </span>
               </div>
-              <p className="text-[11px] text-muted">
-                Copy and paste this HTML code directly into your WordPress, Squarespace, or Wix website header or footer:
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Copy and paste this HTML button code directly into your WordPress, Squarespace, or Wix website header or footer:
               </p>
             </div>
             <div className="flex items-center gap-2 pt-2">
               <input
                 type="text"
                 readOnly
-                value={`<a href="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/book/${user?.tenantSlug || 'desert-air'}" target="_blank" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Book Service Online →</a>`}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-xs text-slate-300 font-mono select-all focus:outline-none truncate"
+                value={`<a href="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/book/${user?.tenantSlug || 'vanguard-electric'}" target="_blank" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Book Service Online →</a>`}
+                className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-xs text-slate-300 font-mono select-all focus:outline-none"
               />
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="shrink-0 text-xs gap-1.5 h-9"
+                className="shrink-0 text-xs font-bold gap-1.5 h-10 px-3.5"
                 onClick={() => {
-                  const code = `<a href="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/book/${user?.tenantSlug || 'desert-air'}" target="_blank" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Book Service Online →</a>`;
+                  const code = `<a href="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/book/${user?.tenantSlug || 'vanguard-electric'}" target="_blank" style="display:inline-block;background:#4F46E5;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold;">Book Service Online →</a>`;
                   navigator.clipboard.writeText(code);
                   setCopiedEmbedCode(true);
                   setTimeout(() => setCopiedEmbedCode(false), 2000);
@@ -518,12 +775,12 @@ export default function SettingsPage() {
               >
                 {copiedEmbedCode ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <Check className="w-4 h-4 text-emerald-400" />
                     <span>Copied!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-4 h-4" />
                     <span>Copy</span>
                   </>
                 )}
@@ -532,51 +789,57 @@ export default function SettingsPage() {
           </div>
 
           {/* Card C: Equipment QR Code & Printable Sticker */}
-          <div className="p-4 rounded-2xl bg-surface-elevated/80 border border-border space-y-2.5 flex flex-col justify-between">
+          <div className="p-5 rounded-2xl bg-surface-elevated/80 border border-border space-y-4 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-white flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-emerald-400" />
                   Equipment QR Code Sticker
                 </span>
-                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-emerald-400 font-mono font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
                   Physical Tag
                 </span>
               </div>
-              <p className="text-[11px] text-muted">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 Affix to AC units, furnaces, and breaker boxes so homeowners can scan with their phone camera to book 24/7.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-surface border border-border my-1">
+            <div className="flex items-center gap-4 p-3 rounded-2xl bg-surface border border-border my-1">
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
                   alt="Booking QR Code"
-                  className="w-14 h-14 rounded-lg bg-white p-1 border border-border/60 shrink-0"
+                  className="w-16 h-16 rounded-xl bg-white p-1.5 border border-border/60 shrink-0 shadow-sm"
                 />
               ) : (
-                <div className="w-14 h-14 rounded-lg bg-surface-card border border-border flex items-center justify-center shrink-0">
-                  <QrCode className="w-5 h-5 text-muted animate-pulse" />
+                <div className="w-16 h-16 rounded-xl bg-surface-card border border-border flex items-center justify-center shrink-0">
+                  <QrCode className="w-6 h-6 text-muted animate-pulse" />
                 </div>
               )}
-              <div className="text-xs space-y-0.5 min-w-0">
-                <p className="font-bold text-white truncate text-xs">{user?.tenantName || 'Service Company'}</p>
-                <p className="text-[11px] text-emerald-400 font-medium">Scan to Book Service</p>
-                <p className="text-[10px] font-mono text-muted truncate">/book/{user?.tenantSlug || 'desert-air'}</p>
+              <div className="text-xs space-y-1 min-w-0">
+                <p className="font-bold text-white truncate text-sm">
+                  {user?.tenantName || 'Vanguard Electric & Power'}
+                </p>
+                <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                  <span>●</span> Scan to Book Service
+                </p>
+                <p className="text-xs font-mono text-slate-400 truncate">
+                  /book/{user?.tenantSlug || 'vanguard-electric'}
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-2 gap-3 pt-1">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={handleDownloadQrPng}
-                className="gap-1.5 text-xs h-9"
+                className="gap-2 text-xs font-semibold h-10"
               >
-                <Download className="w-3.5 h-3.5 text-sky-400" />
-                <span>PNG</span>
+                <Download className="w-4 h-4 text-sky-400" />
+                <span>PNG File</span>
               </Button>
 
               <Button
@@ -584,9 +847,9 @@ export default function SettingsPage() {
                 size="sm"
                 variant="primary"
                 onClick={() => setIsStickerModalOpen(true)}
-                className="gap-1.5 text-xs h-9 shadow-md shadow-primary-glow font-bold"
+                className="gap-2 text-xs font-bold h-10 shadow-md shadow-primary-glow"
               >
-                <Printer className="w-3.5 h-3.5" />
+                <Printer className="w-4 h-4" />
                 <span>Print Sticker</span>
               </Button>
             </div>
@@ -595,21 +858,33 @@ export default function SettingsPage() {
       </div>
 
       {/* Team Management Section */}
-      <div className="p-6 rounded-3xl bg-surface/90 border border-border space-y-5">
+      <div className="p-6 sm:p-7 rounded-3xl bg-surface/90 border border-border space-y-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-          <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              <span>Operational Workforce {isSuperAdminOrOwner ? `(${team.length})` : ''}</span>
-            </h2>
-            <p className="text-xs text-muted mt-0.5">
-              Add managers, dispatchers, sales estimators, and field technicians with 24-hour onboarding links.
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-center text-primary shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>Operational Workforce</span>
+                {isSuperAdminOrOwner && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-accent border border-primary/30">
+                    {team.length} Members
+                  </span>
+                )}
+              </h2>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Add managers, dispatchers, sales estimators, and field technicians with 24-hour onboarding links.
+              </p>
+            </div>
           </div>
 
           {isSuperAdminOrOwner && (
-            <Button onClick={() => setIsInviteModalOpen(true)} size="sm" className="gap-1.5 text-xs">
-              <UserPlus className="w-3.5 h-3.5" />
+            <Button
+              onClick={() => setIsInviteModalOpen(true)}
+              className="gap-2 text-xs font-bold h-10 px-4 shadow-md shadow-primary-glow shrink-0"
+            >
+              <UserPlus className="w-4 h-4" />
               <span>Invite Staff Member</span>
             </Button>
           )}
@@ -637,37 +912,37 @@ export default function SettingsPage() {
             {team.map((member) => (
               <div
                 key={member.id}
-                className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs hover:bg-surface-elevated/30 px-3 -mx-3 rounded-2xl transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-surface-elevated border border-border flex items-center justify-center text-slate-200 font-bold uppercase text-xs shrink-0">
-                    {member.name.slice(0, 2)}
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-ai border border-border flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+                    {member.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white text-sm">{member.name}</span>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-bold text-white text-sm">{member.name}</span>
                       <Badge variant={getRoleBadgeVariant(member.role.slug)}>
                         {member.role.name}
                       </Badge>
                     </div>
-                    <span className="text-muted font-mono">{member.email}</span>
+                    <span className="text-xs font-mono text-slate-400 block">{member.email}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-[11px]">
+                <div className="flex items-center gap-4 text-xs">
                   {member.isInviteAccepted === false ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                      <Clock className="w-3 h-3" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      <Clock className="w-3.5 h-3.5" />
                       <span>Invite Pending</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      <CheckCircle className="w-3 h-3" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      <CheckCircle className="w-3.5 h-3.5" />
                       <span>Active</span>
                     </span>
                   )}
 
-                  <span className="text-subtle font-mono hidden sm:inline">
+                  <span className="text-slate-300 font-mono text-xs bg-surface-elevated px-3 py-1 rounded-xl border border-border hidden sm:inline">
                     Limit: ${Number(member.role.approvalLimit).toLocaleString()}
                   </span>
                 </div>

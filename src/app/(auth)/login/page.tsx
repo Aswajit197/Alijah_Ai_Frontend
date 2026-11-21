@@ -35,6 +35,47 @@ function LoginForm() {
   const [userName, setUserName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // Forgot Password State
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotIsSubmitting, setForgotIsSubmitting] = useState(false);
+  const [forgotSuccessMessage, setForgotSuccessMessage] = useState<string | null>(null);
+  const [forgotDevResetLink, setForgotDevResetLink] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError(null);
+    setForgotSuccessMessage(null);
+    setForgotDevResetLink(null);
+
+    if (!forgotEmail) {
+      setForgotError('Please enter your work email.');
+      return;
+    }
+
+    setForgotIsSubmitting(true);
+    try {
+      const res = await apiRequest<{
+        success: boolean;
+        resetLink: string;
+        email: string;
+      }>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+
+      setForgotSuccessMessage(
+        `Password reset link sent to ${res.email}. Check your email or use the Dev Mode direct link below.`
+      );
+      setForgotDevResetLink(res.resetLink);
+    } catch (err: any) {
+      setForgotError(err.message || 'Failed to request password reset.');
+    } finally {
+      setForgotIsSubmitting(false);
+    }
+  };
+
   // Check for expired session query param
   useEffect(() => {
     if (searchParams.get('expired') === 'true') {
@@ -145,8 +186,95 @@ function LoginForm() {
               </div>
             )}
 
+            {/* FORGOT PASSWORD FORM */}
+            {authPhase === 'idle' && showForgotPassword && (
+              <form onSubmit={handleForgotPassword} className="space-y-4 text-left">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-ai" />
+                    <span>Reset Your Password</span>
+                  </h3>
+                  <p className="text-[11px] text-muted">
+                    Enter your registered work email address. We will generate a secure reset link.
+                  </p>
+                </div>
+
+                {forgotError && (
+                  <div className="p-3 rounded-xl bg-danger-bg border border-danger/30 text-danger text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
+                {forgotSuccessMessage && (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{forgotSuccessMessage}</span>
+                    </div>
+
+                    {forgotDevResetLink && (
+                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Dev Mode Quick Reset Link</span>
+                        </div>
+                        <p className="text-[11px] text-slate-300">
+                          Click below to reset your password immediately without checking email:
+                        </p>
+                        <a
+                          href={forgotDevResetLink}
+                          className="block p-2 rounded-xl bg-surface border border-border text-xs text-ai font-mono break-all hover:border-ai transition-colors"
+                        >
+                          {forgotDevResetLink} →
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <Input
+                    label="Work Email"
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    autoComplete="email"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <Button
+                    type="submit"
+                    isLoading={forgotIsSubmitting}
+                    className="w-full gap-2 text-xs font-bold shadow-lg shadow-primary-glow/30 bg-primary hover:bg-primary-hover text-white transition-all h-10"
+                    size="lg"
+                  >
+                    <span>Send Password Reset Link</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotError(null);
+                      setForgotSuccessMessage(null);
+                      setForgotDevResetLink(null);
+                    }}
+                    className="w-full text-center text-xs text-muted hover:text-white transition-colors py-1.5"
+                  >
+                    ← Back to Sign In
+                  </button>
+                </div>
+              </form>
+            )}
+
             {/* PHASE 1: Normal Form */}
-            {authPhase === 'idle' && (
+            {authPhase === 'idle' && !showForgotPassword && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Input
@@ -162,8 +290,20 @@ function LoginForm() {
                 </div>
 
                 <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-slate-300">Password</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email);
+                        setShowForgotPassword(true);
+                      }}
+                      className="text-[11px] font-semibold text-ai hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <Input
-                    label="Password"
                     type="password"
                     required
                     value={password}
