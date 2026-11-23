@@ -76,6 +76,66 @@ export interface Conversation {
 	transcript: TranscriptTurn[];
 }
 
+export function formatInboxTimestamp(dateInput: string | Date | number): string {
+	if (!dateInput) return "";
+	const date = new Date(dateInput);
+	if (isNaN(date.getTime())) return "";
+
+	const now = new Date();
+	const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const startOfCallDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	const diffMs = startOfToday.getTime() - startOfCallDate.getTime();
+	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+	if (diffDays <= 0) {
+		return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+	} else if (diffDays === 1) {
+		return "1d";
+	} else if (diffDays < 7) {
+		return `${diffDays}d`;
+	} else if (diffDays < 30) {
+		const weeks = Math.floor(diffDays / 7);
+		return `${weeks}w`;
+	} else {
+		const months = Math.floor(diffDays / 30);
+		return `${months}mo`;
+	}
+}
+
+export function parseTranscriptTurns(rawTranscript: string, fallbackCustomerName: string): TranscriptTurn[] {
+	if (!rawTranscript) return [];
+	const lines = rawTranscript.split("\n").filter((l) => l.trim().length > 0);
+
+	let currentSpeaker: "ai" | "customer" = "ai";
+	let currentSpeakerName = "Elijah (AI Receptionist)";
+
+	const turns: TranscriptTurn[] = [];
+
+	for (let idx = 0; idx < lines.length; idx++) {
+		const line = lines[idx].trim();
+		if (line.startsWith("Agent:")) {
+			currentSpeaker = "ai";
+			currentSpeakerName = "Elijah (AI Receptionist)";
+		} else if (line.startsWith("User:") || line.startsWith("Customer:") || line.startsWith("Caller:")) {
+			currentSpeaker = "customer";
+			currentSpeakerName = fallbackCustomerName || "Customer";
+		}
+
+		const cleanText = line.replace(/^(Agent|User|Customer|Caller):\s*/i, "").trim();
+		if (cleanText.length > 0) {
+			turns.push({
+				id: `turn-${idx}`,
+				speaker: currentSpeaker,
+				speakerName: currentSpeakerName,
+				time: "",
+				text: cleanText,
+			});
+		}
+	}
+
+	return turns;
+}
+
 const INITIAL_CONVERSATIONS: Conversation[] = [];
 
 export default function InboxPage() {
@@ -158,12 +218,17 @@ export default function InboxPage() {
 			if (Array.isArray(callsData) && callsData.length > 0) {
 				const mapped: Conversation[] = [];
 				for (const call of callsData) {
-					if (call.status === "ended" && call.summary) {
+					// Accept any call that is completed, ended, or has transcript/summary
+					if (
+						call.status === "ended" ||
+						call.transcript ||
+						(call.summary && call.summary.trim().length > 0)
+					) {
 						const durationSec = Math.round((call.durationMs || 0) / 1000);
 						const m = Math.floor(durationSec / 60);
 						const s = durationSec % 60;
 
-						const jobMatch = call.summary.match(/JOB-\d+/i);
+						const jobMatch = call.summary?.match(/JOB-\d+/i);
 						const jobNumber = jobMatch ? jobMatch[0] : undefined;
 
 						// Match with live job in database for real customer and job info
@@ -171,12 +236,12 @@ export default function InboxPage() {
 
 						// Dynamically extract caller name from summary if not in matchedJob
 						const callerMatch =
-							call.summary.match(/(?:Caller|The caller|Customer)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i) ||
-							call.summary.match(/under\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+							call.summary?.match(/(?:Caller|The caller|Customer)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i) ||
+							call.summary?.match(/under\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 						const extractedCallerName = callerMatch ? callerMatch[1] : null;
 
 						// Dynamically extract phone number from call or summary
-						const phoneMatch = call.summary.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+						const phoneMatch = call.summary?.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
 						const extractedPhone = phoneMatch ? phoneMatch[0] : null;
 
 						const customerName =
@@ -189,14 +254,18 @@ export default function InboxPage() {
 						const serviceAddress =
 							matchedJob?.serviceAddress ||
 							matchedJob?.customer?.address ||
-							(call.summary.match(/at\s+([^,.]+(?:,\s*[^,.]+){1,2})/i)?.[1]
+							(call.summary?.match(/at\s+([^,.]+(?:,\s*[^,.]+){1,2})/i)?.[1]
 								? `${call.summary.match(/at\s+([^,.]+(?:,\s*[^,.]+){1,2})/i)?.[1]}, Phoenix, AZ`
 								: "Phoenix, AZ (Pending Intake)");
 						const reportedIssue =
 							matchedJob?.reportedIssue ||
 							matchedJob?.title ||
-							(call.summary.length > 50 ? `${call.summary.slice(0, 80)}...` : call.summary);
+							(call.summary && call.summary.length > 50 ? `${call.summary.slice(0, 80)}...` : call.summary || "Inbound AI Call");
 						const gateCode = matchedJob?.gateCode || undefined;
+
+						const initialTurns = call.transcript
+							? parseTranscriptTurns(call.transcript, customerName)
+							: [];
 
 						mapped.push({
 							id: call.id,
@@ -205,14 +274,14 @@ export default function InboxPage() {
 							customerEmail,
 							channel: "CALL",
 							urgency:
-								call.summary.toLowerCase().includes("emergency") || matchedJob?.priority === "EMERGENCY" ? "EMERGENCY" : "NORMAL",
+								call.summary?.toLowerCase().includes("emergency") || matchedJob?.priority === "EMERGENCY" ? "EMERGENCY" : "NORMAL",
 							aiStatus: call.isSuccessful ? "AUTO_BOOKED" : "NEEDS_APPROVAL",
-							sentiment: call.userSentiment === "neutral" ? "Satisfied / Cooperative" : "Relieved",
-							timestamp: new Date(call.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+							sentiment: call.userSentiment === "neutral" ? "Satisfied / Cooperative" : (call.userSentiment || "Relieved"),
+							timestamp: formatInboxTimestamp(call.createdAt || call.startedAt || Date.now()),
 							duration: `${m}m ${s < 10 ? "0" : ""}${s}s`,
 							unread: false,
 							reportedIssue,
-							aiSummary: call.summary,
+							aiSummary: call.summary || "Call completed via Elijah AI Receptionist.",
 							serviceAddress,
 							gateCode,
 							jobId: matchedJob?.id,
@@ -228,7 +297,7 @@ export default function InboxPage() {
 										location: matchedJob.equipment.locationOnSite || "",
 									}
 								: undefined,
-							transcript: [],
+							transcript: initialTurns,
 						});
 					}
 				}
@@ -251,7 +320,7 @@ export default function InboxPage() {
 		loadConversations();
 	}, []);
 
-	// Fetch full transcript turns for selected conversation
+	// Fetch full transcript turns for selected conversation if not already parsed
 	useEffect(() => {
 		if (!selectedId) return;
 		const current = conversations.find((c) => c.id === selectedId);
@@ -259,24 +328,13 @@ export default function InboxPage() {
 			apiRequest<any>(`/jobs/voice-calls/${selectedId}`)
 				.then((detail) => {
 					if (detail && detail.transcript) {
-						const raw = detail.transcript as string;
-						const lines = raw.split("\n").filter((l: string) => l.trim().length > 0);
-						const turns: TranscriptTurn[] = lines.map((line: string, idx: number) => {
-							const isAgent = line.startsWith("Agent:");
-							return {
-								id: `turn-${idx}`,
-								speaker: isAgent ? "ai" : "customer",
-								speakerName: isAgent ? "Elijah (AI Receptionist)" : current.customerName,
-								time: "",
-								text: line.replace(/^(Agent|User):\s*/, "").trim(),
-							};
-						});
+						const turns = parseTranscriptTurns(detail.transcript, current.customerName);
 						setConversations((prev) => prev.map((c) => (c.id === selectedId ? { ...c, transcript: turns } : c)));
 					}
 				})
 				.catch(console.error);
 		}
-	}, [selectedId, conversations.length]);
+	}, [selectedId, conversations]);
 
 	// Auto-scroll whenever transcript updates or user switches conversation
 	useEffect(() => {
@@ -787,54 +845,61 @@ export default function InboxPage() {
 
 							{/* Transcript / Messages Scroll Stream */}
 							<div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-background/40">
-								{activeConv.transcript.map((turn) => {
-									if (turn.speaker === "system") {
+								{activeConv.transcript.length === 0 ? (
+									<div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
+										<MessageSquare className="w-8 h-8 text-slate-600 mb-2 opacity-60" />
+										<p className="text-xs text-muted">No message transcript recorded for this call.</p>
+									</div>
+								) : (
+									activeConv.transcript.map((turn) => {
+										if (turn.speaker === "system") {
+											return (
+												<div key={turn.id} className="flex items-center justify-center my-2">
+													<span className="px-3 py-1 rounded-full bg-surface-elevated/90 border border-border text-[10px] text-slate-300 font-mono shadow-sm flex items-center gap-1.5">
+														<span>{turn.text}</span>
+													</span>
+												</div>
+											);
+										}
+
+										// "isMine": Your messages (AI Receptionist, Dispatcher, Company) on the RIGHT
+										// Client/Customer messages on the LEFT
+										const isMine = turn.speaker === "ai";
+
 										return (
-											<div key={turn.id} className="flex items-center justify-center my-2">
-												<span className="px-3 py-1 rounded-full bg-surface-elevated/90 border border-border text-[10px] text-slate-300 font-mono shadow-sm flex items-center gap-1.5">
-													<span>{turn.text}</span>
-												</span>
+											<div key={turn.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+												<div
+													className={`flex items-center gap-1.5 mb-1 px-1 text-[11px] ${isMine ? "flex-row-reverse" : "flex-row"}`}>
+													{isMine ? (
+														<span className="font-bold text-primary flex items-center gap-1">
+															<Sparkles className="w-3 h-3" />
+															<span>{turn.speakerName}</span>
+														</span>
+													) : (
+														<span className="font-semibold text-slate-300">{turn.speakerName}</span>
+													)}
+													<span className="text-[10px] text-muted">{turn.time}</span>
+												</div>
+
+												<div
+													className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-sm ${
+														isMine
+															? "bg-primary text-white rounded-tr-sm shadow-md shadow-primary-glow/20"
+															: "bg-surface-elevated border border-border text-slate-200 rounded-tl-sm"
+													}`}>
+													<p>{turn.text}</p>
+													{turn.tag && (
+														<div className="mt-2 pt-2 border-t border-white/20">
+															<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-white/20 text-white border border-white/30">
+																{turn.tag}
+															</span>
+														</div>
+													)}
+												</div>
 											</div>
 										);
-									}
-
-									// "isMine": Your messages (AI Receptionist, Dispatcher, Company) on the RIGHT
-									// Client/Customer messages on the LEFT
-									const isMine = turn.speaker === "ai";
-
-									return (
-										<div key={turn.id} className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-											<div
-												className={`flex items-center gap-1.5 mb-1 px-1 text-[11px] ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-												{isMine ? (
-													<span className="font-bold text-primary flex items-center gap-1">
-														<Sparkles className="w-3 h-3" />
-														<span>{turn.speakerName}</span>
-													</span>
-												) : (
-													<span className="font-semibold text-slate-300">{turn.speakerName}</span>
-												)}
-												<span className="text-[10px] text-muted">{turn.time}</span>
-											</div>
-
-											<div
-												className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-sm ${
-													isMine
-														? "bg-primary text-white rounded-tr-sm shadow-md shadow-primary-glow/20"
-														: "bg-surface-elevated border border-border text-slate-200 rounded-tl-sm"
-												}`}>
-												<p>{turn.text}</p>
-												{turn.tag && (
-													<div className="mt-2 pt-2 border-t border-white/20">
-														<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-white/20 text-white border border-white/30">
-															{turn.tag}
-														</span>
-													</div>
-												)}
-											</div>
-										</div>
-									);
-								})}
+									})
+								)}
 								{/* Auto-scroll target anchor */}
 								<div ref={messagesEndRef} />
 							</div>

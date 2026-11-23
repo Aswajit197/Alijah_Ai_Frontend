@@ -18,6 +18,14 @@ import {
   Shield,
   Activity,
   Target,
+  FileText,
+  CreditCard,
+  BookOpen,
+  PhoneCall,
+  Bot,
+  PlayCircle,
+  Briefcase,
+  Repeat,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -80,6 +88,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       roles: ['owner', 'office_manager'],
     },
     {
+      label: 'AI Team',
+      href: '/ai-team',
+      icon: Bot,
+      badge: null,
+      roles: ['owner', 'office_manager'],
+    },
+    {
       label: 'Mobile Field Portal',
       href: '/tech',
       icon: Smartphone,
@@ -97,6 +112,68 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   ];
 
   const visibleNavItems = navItems.filter((item) =>
+    item.roles.includes(roleSlug)
+  );
+
+  const workspaceItems = [
+    {
+      label: 'Estimates & Proposals',
+      href: '/estimates',
+      icon: FileText,
+      badge: 'New',
+      badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+      roles: ['owner', 'office_manager', 'sales_estimator', 'dispatcher'],
+    },
+    {
+      label: 'Follow-up Recipes',
+      href: '/recipes',
+      icon: Repeat,
+      badge: null,
+      badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      roles: ['owner', 'office_manager', 'sales_estimator', 'dispatcher'],
+    },
+    {
+      label: 'Billing & AR',
+      href: '/billing',
+      icon: CreditCard,
+      badge: null,
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      roles: ['owner', 'office_manager', 'finance'],
+    },
+    {
+      label: 'Projects',
+      href: '/projects',
+      icon: Briefcase,
+      badge: null,
+      roles: ['owner', 'office_manager', 'sales_estimator'],
+    },
+    {
+      label: 'Knowledge Base',
+      href: '/knowledge',
+      icon: BookOpen,
+      badge: null,
+      badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      roles: ['owner', 'office_manager', 'dispatcher', 'sales_estimator', 'technician'],
+    },
+    {
+      label: 'Call Simulator',
+      href: '/call-simulator',
+      icon: PhoneCall,
+      badge: 'Sandbox',
+      badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      roles: ['owner', 'office_manager'],
+    },
+    {
+      label: 'Test Drive',
+      href: '/test-drive',
+      icon: PlayCircle,
+      badge: 'QA',
+      badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      roles: ['owner', 'office_manager'],
+    },
+  ];
+
+  const visibleWorkspaceItems = workspaceItems.filter((item) =>
     item.roles.includes(roleSlug)
   );
 
@@ -206,6 +283,56 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </Link>
             );
           })}
+
+          {visibleWorkspaceItems.length > 0 && (
+            <>
+              <div className="pt-4 pb-1">
+                <div className="text-[10px] uppercase font-semibold text-subtle tracking-wider px-3 mb-1">
+                  Workspaces
+                </div>
+              </div>
+              {visibleWorkspaceItems.map((item) => {
+                const isActive = pathname === item.href;
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={true}
+                    onClick={onClose}
+                    className={cn(
+                      'flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all group active:scale-[0.98]',
+                      isActive
+                        ? 'bg-primary/15 text-white border border-primary/40 shadow-sm shadow-primary-glow/20'
+                        : 'text-muted hover:text-white hover:bg-surface-elevated'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon
+                        className={cn(
+                          'w-4 h-4 transition-colors',
+                          isActive ? 'text-primary' : 'text-subtle group-hover:text-slate-300'
+                        )}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+
+                    {item.badge && (
+                      <span
+                        className={cn(
+                          'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                          item.badgeColor
+                        )}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </div>
 
         {/* User Card & Logout in Footer */}

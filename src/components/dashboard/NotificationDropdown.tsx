@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth';
 
 export interface AppNotification {
   id: string;
@@ -58,11 +59,57 @@ export function NotificationDropdown() {
     }
   };
 
-  // Initial fetch and 15-second polling for live autonomous updates
+  // Real-time Server-Sent Events (SSE) Stream - Zero Polling!
   useEffect(() => {
+    // 1. Initial snapshot fetch
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
+
+    // 2. Connect to real-time SSE stream
+    const token = getAuthToken();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const streamUrl = `${apiUrl}/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(streamUrl);
+
+      eventSource.addEventListener('connected', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (typeof data.unreadCount === 'number') {
+            setUnreadCount(data.unreadCount);
+          }
+        } catch {}
+      });
+
+      eventSource.addEventListener('notification', (e: MessageEvent) => {
+        try {
+          const newNotif = JSON.parse(e.data) as AppNotification;
+          if (newNotif && newNotif.id) {
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === newNotif.id)) return prev;
+              return [newNotif, ...prev];
+            });
+            setUnreadCount((prev) => prev + 1);
+          }
+        } catch (err) {
+          console.debug('Error parsing SSE notification event:', err);
+        }
+      });
+
+      eventSource.onerror = (err) => {
+        // Native EventSource automatically reconnects with backoff
+        console.debug('SSE notification connection state:', err);
+      };
+    } catch (e) {
+      console.warn('Could not initialize SSE EventSource:', e);
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
   }, []);
 
   // Close dropdown on outside click
