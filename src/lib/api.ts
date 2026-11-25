@@ -23,13 +23,14 @@ export class ApiError extends Error {
 
 export interface ApiRequestOptions extends RequestInit {
   service?: ServiceTarget;
+  skipAuthRedirect?: boolean;
 }
 
 export async function apiRequest<T = any>(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<T> {
-  const { service = 'core', ...fetchOptions } = options;
+  const { service = 'core', skipAuthRedirect = false, ...fetchOptions } = options;
   const baseUrl = SERVICE_BASES[service];
   const token = typeof window !== 'undefined' ? getAuthToken() : null;
 
@@ -50,8 +51,9 @@ export async function apiRequest<T = any>(
 
   const data = await response.json().catch(() => ({}));
 
-  // Handle Unauthorized / Token Expired
-  if (response.status === 401) {
+  // Handle Unauthorized / Token Expired - ONLY for CORE backend sessions
+  // Auxiliary microservices (voice, ai, workflow) must NEVER log out the user!
+  if (response.status === 401 && service === 'core' && !skipAuthRedirect) {
     if (typeof window !== 'undefined') {
       clearAuthSession();
       if (!window.location.pathname.startsWith('/login')) {

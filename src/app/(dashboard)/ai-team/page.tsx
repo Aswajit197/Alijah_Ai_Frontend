@@ -317,7 +317,10 @@ export default function AITeamPage() {
 
       // Fetch real Receptionist prompt from voice-service
       try {
-        const agentSettingsRes = await apiRequest<any>('/agent-settings', { service: 'voice' });
+        const agentSettingsRes = await apiRequest<any>('/agent-settings', {
+          service: 'voice',
+          skipAuthRedirect: true,
+        });
         if (agentSettingsRes && agentSettingsRes.prompt) {
           setActivePrompt(agentSettingsRes.prompt);
           setPromptDraft(agentSettingsRes.prompt);
@@ -377,6 +380,7 @@ export default function AITeamPage() {
       await apiRequest('/agent-settings', {
         service: 'voice',
         method: 'PUT',
+        skipAuthRedirect: true,
         body: JSON.stringify({
           prompt: promptDraft.trim(),
         }),
