@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { apiRequest } from '@/lib/api';
 
 interface Step {
   id: string;
@@ -149,22 +150,28 @@ export default function FollowUpRecipesPage() {
 
   // Sync with backend on mount
   useEffect(() => {
-    fetch('http://localhost:5000/api/v1/follow-up-settings', {
-      headers: { 'x-tenant-id': 'cmwexxk6u0001nrstmjy98yz5' },
-    })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json?.data?.recipes && Array.isArray(json.data.recipes) && json.data.recipes.length > 0) {
-          setRecipes(json.data.recipes);
+    apiRequest<{ data: { recipes?: Recipe[] } }>('/follow-up-settings')
+      .then((res) => {
+        if (res?.data?.recipes && Array.isArray(res.data.recipes) && res.data.recipes.length > 0) {
+          setRecipes(res.data.recipes);
         }
       })
       .catch((err) => console.warn('Could not fetch follow-up settings from backend:', err));
   }, []);
 
-  const handleToggleRecipe = (id: string) => {
-    setRecipes((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, isEnabled: !r.isEnabled } : r))
-    );
+  const handleToggleRecipe = async (id: string) => {
+    const updated = recipes.map((r) => (r.id === id ? { ...r, isEnabled: !r.isEnabled } : r));
+    setRecipes(updated);
+    try {
+      await apiRequest('/follow-up-settings', {
+        method: 'PUT',
+        body: JSON.stringify({ recipes: updated }),
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (e) {
+      console.warn('Could not auto-persist recipe toggle:', e);
+    }
   };
 
   const handleWaitChange = (recipeId: string, stepId: string, newDays: number) => {
@@ -195,17 +202,10 @@ export default function FollowUpRecipesPage() {
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      // Persist to backend with live recipes state
-      await fetch('http://localhost:5000/api/v1/follow-up-settings', {
+      // Persist to backend with live recipes state (without overwriting check-in delay fields)
+      await apiRequest('/follow-up-settings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': 'cmwexxk6u0001nrstmjy98yz5',
-        },
         body: JSON.stringify({
-          feedbackCallDelayMinutes: 300,
-          isTechnicianCheckInEnabled: true,
-          technicianCheckInDelayMinutes: 60,
           recipes,
         }),
       });
@@ -213,7 +213,7 @@ export default function FollowUpRecipesPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to save follow-up recipes:', e);
     } finally {
       setIsSaving(false);
     }
