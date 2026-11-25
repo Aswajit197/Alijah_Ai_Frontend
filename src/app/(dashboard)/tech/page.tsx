@@ -17,6 +17,9 @@ import {
   ExternalLink,
   Check,
   X,
+  RotateCcw,
+  Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +69,19 @@ export default function TechPortalPage() {
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [fieldNotes, setFieldNotes] = useState('');
 
+  // Hand-back state (Direct assignment protocol v2)
+  const [isHandBackModalOpen, setIsHandBackModalOpen] = useState(false);
+  const [handBackReason, setHandBackReason] = useState('');
+  const [handBackError, setHandBackError] = useState<string | null>(null);
+
+  const HAND_BACK_PRESETS = [
+    'Stuck on current emergency repair',
+    'Van mechanical breakdown / Flat tire',
+    'Missing critical parts for this unit',
+    'Personal / Family emergency',
+    'Exceeded daily max route hours',
+  ];
+
   const loadActiveJob = async () => {
     setIsLoading(true);
     try {
@@ -101,12 +117,14 @@ export default function TechPortalPage() {
     }
   };
 
-  const handleDeclineOffer = async () => {
+  // Direct Assignment Hand-Back (requires non-empty reason and auto-reassigns next technician)
+  const handleConfirmHandBack = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!job) return;
-    const confirmed = window.confirm(
-      'Are you sure you want to decline this job offer? Elijah AI will automatically attempt to re-route this job to the next available technician.'
-    );
-    if (!confirmed) return;
+    if (!handBackReason.trim()) {
+      setHandBackError('A specific reason is required so Elijah AI can alert dispatch and re-route.');
+      return;
+    }
 
     setIsUpdating(true);
     try {
@@ -118,14 +136,17 @@ export default function TechPortalPage() {
       }>(`/jobs/${job.id}/decline`, {
         method: 'POST',
         body: JSON.stringify({
-          reason: 'Technician route conflict / Unavailable',
+          reason: handBackReason.trim(),
         }),
       });
 
-      alert(`⚡ Autonomous Dispatch:\n\n${res.message}`);
+      setIsHandBackModalOpen(false);
+      setHandBackReason('');
+      setHandBackError(null);
+      alert(`⚡ Autonomous Re-routing Executed:\n\n${res.message}`);
       loadActiveJob();
     } catch (err: any) {
-      alert(`Error declining job: ${err.message}`);
+      alert(`Error handing back job: ${err.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -315,45 +336,41 @@ export default function TechPortalPage() {
             </div>
           )}
 
-          {/* New Job Offer / Assignment Banner */}
+          {/* Direct Assignment & Hand-Back Banner (Tek's direct-assignment-v1 protocol) */}
           {(job.status === 'SCHEDULED' || job.status === 'DISPATCHED') && (
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
-              <div className="flex items-center gap-2 text-amber-300 font-semibold text-xs">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>New Job Assignment — Confirm Availability</span>
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-blue-500/10 to-transparent border border-primary/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-primary font-semibold text-xs">
+                  <Sparkles className="w-4 h-4 fill-primary" />
+                  <span>Direct Assignment — Active on Your Queue</span>
+                </div>
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  Directly Assigned
+                </span>
               </div>
-              <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                Review the location and symptoms. Accept and start driving when ready, or decline so Elijah AI can autonomously re-route this work order to another certified technician.
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                This work order is assigned to you directly (no acceptance delay). Tap <strong>Mark En Route</strong> when heading to the site, or hand the job back with a reason so Elijah AI can auto-assign the next technician.
               </p>
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <Button
                   variant="outline"
-                  className="text-xs h-10 border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
-                  isLoading={isUpdating}
-                  onClick={handleDeclineOffer}
+                  className="text-xs h-10 border-rose-500/40 text-rose-400 hover:bg-rose-500/10 font-semibold"
+                  onClick={() => {
+                    setHandBackError(null);
+                    setIsHandBackModalOpen(true);
+                  }}
                 >
-                  <X className="w-4 h-4" />
-                  <span>Decline / Re-route</span>
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  <span>Can't Make It (Hand Back)</span>
                 </Button>
-                {job.status === 'SCHEDULED' ? (
-                  <Button
-                    className="text-xs h-10 bg-emerald-600 hover:bg-emerald-500 text-white"
-                    isLoading={isUpdating}
-                    onClick={() => handleStatusChange('DISPATCHED')}
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Accept Job Offer</span>
-                  </Button>
-                ) : (
-                  <Button
-                    className="text-xs h-10 bg-sky-600 hover:bg-sky-500 text-white"
-                    isLoading={isUpdating}
-                    onClick={() => handleStatusChange('EN_ROUTE')}
-                  >
-                    <Navigation className="w-4 h-4" />
-                    <span>Accept & Drive</span>
-                  </Button>
-                )}
+                <Button
+                  className="text-xs h-10 bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md shadow-sky-600/30"
+                  isLoading={isUpdating}
+                  onClick={() => handleStatusChange('EN_ROUTE')}
+                >
+                  <Navigation className="w-4 h-4 mr-1.5" />
+                  <span>Mark En Route & Drive</span>
+                </Button>
               </div>
             </div>
           )}
@@ -371,14 +388,19 @@ export default function TechPortalPage() {
               </Button>
 
               {job.status === 'SCHEDULED' && (
-                <div className="flex items-center justify-center p-2 rounded-xl bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20 text-center">
-                  <span>Pending Acceptance</span>
-                </div>
+                <Button
+                  className="gap-2 text-xs h-11 bg-sky-600 hover:bg-sky-500 shadow-md shadow-sky-600/30 font-semibold"
+                  isLoading={isUpdating}
+                  onClick={() => handleStatusChange('EN_ROUTE')}
+                >
+                  <Navigation className="w-4 h-4" />
+                  <span>Mark En Route</span>
+                </Button>
               )}
 
               {job.status === 'DISPATCHED' && (
                 <Button
-                  className="gap-2 text-xs h-11 bg-sky-600 hover:bg-sky-500 shadow-md shadow-sky-600/30"
+                  className="gap-2 text-xs h-11 bg-sky-600 hover:bg-sky-500 shadow-md shadow-sky-600/30 font-semibold"
                   isLoading={isUpdating}
                   onClick={() => handleStatusChange('EN_ROUTE')}
                 >
@@ -444,6 +466,78 @@ export default function TechPortalPage() {
             </Button>
             <Button type="submit" isLoading={isUpdating}>
               Save Field Notes
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Hand-Back Work Order Modal (Tek's direct-assignment-v1 protocol) */}
+      <Modal
+        isOpen={isHandBackModalOpen}
+        onClose={() => setIsHandBackModalOpen(false)}
+        title="Can't Make It? Hand Back Work Order"
+        description="Elijah AI will immediately re-assign this job to the next available certified technician. A specific reason is required for dispatch logs."
+      >
+        <form onSubmit={handleConfirmHandBack} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+              Reason for Hand-Back *
+            </label>
+            <textarea
+              rows={3}
+              required
+              value={handBackReason}
+              onChange={(e) => {
+                setHandBackReason(e.target.value);
+                if (handBackError) setHandBackError(null);
+              }}
+              placeholder="Explain why you cannot take this job (e.g. Stuck on current job, Van flat tire, Missing capacitor)..."
+              className="w-full p-3 bg-surface border border-border rounded-xl text-xs text-white placeholder:text-muted focus:outline-none focus:border-rose-500"
+            />
+            {handBackError && (
+              <p className="text-[11px] text-rose-400 font-medium">{handBackError}</p>
+            )}
+          </div>
+
+          {/* Quick Preset Reason Buttons */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Quick Presets:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {HAND_BACK_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => {
+                    setHandBackReason(preset);
+                    setHandBackError(null);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-surface-elevated hover:bg-surface text-slate-300 hover:text-white border border-border text-[11px] transition-colors"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-300">
+            <strong>Autonomous Cascade:</strong> Elijah AI will skip your route and reassign this work order to the next free technician immediately.
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsHandBackModalOpen(false)}
+            >
+              Keep Work Order
+            </Button>
+            <Button
+              type="submit"
+              isLoading={isUpdating}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold"
+            >
+              <RotateCcw className="w-4 h-4 mr-1.5" />
+              <span>Hand Back & Re-Assign</span>
             </Button>
           </div>
         </form>

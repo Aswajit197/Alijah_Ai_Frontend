@@ -935,6 +935,14 @@ function ScheduleContent() {
                             );
                           })()}
 
+                          {/* Hand-Back & Autonomous Re-Dispatch Pill */}
+                          {j.notes && (j.notes.includes('Declined by') || j.notes.includes('re-assigned') || j.notes.includes('Handed back')) && (
+                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300 flex items-center justify-between">
+                              <span className="font-semibold truncate">⚡ Hand-Back Handled · Next Tech Assigned</span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 font-mono">AUTONOMOUS</span>
+                            </div>
+                          )}
+
                           {/* Status Lifecycle Action Buttons */}
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
                             {j.status === 'SCHEDULED' && (() => {

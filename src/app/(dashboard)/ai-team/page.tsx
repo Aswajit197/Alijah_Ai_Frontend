@@ -112,8 +112,9 @@ const BACKEND_AI_TEAM: AIEmployee[] = [
     primaryPrompt:
       'Match trade licensing (CR-39 / CR-11), calculate on-call rankings and daily workload, score candidate technicians, and cascade emergency alerts if unaccepted within timeout window.',
     allowedActions: [
-      'Score and rank candidate technicians using AI candidate algorithm',
-      'Propose assignment based on trade license, on-call rank & workload',
+      'Direct Assignment Protocol (v2): Directly assigns work orders without acceptance timeouts',
+      'Score and rank candidate technicians using AI candidate matching',
+      'Autonomous Hand-Back Cascading: When a tech hands back a job with a mandatory reason, auto-assigns next candidate',
       'Send real-time dispatch alerts to technician mobile field portal',
       'Auto-assign when set to Autonomous (dispatchPolicy: ALLOW)',
     ],
