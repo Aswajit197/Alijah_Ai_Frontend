@@ -26,6 +26,7 @@ import {
   PlayCircle,
   Briefcase,
   Repeat,
+  MapPin,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -146,6 +147,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: Briefcase,
       badge: null,
       roles: ['owner', 'office_manager', 'sales_estimator'],
+    },
+    {
+      label: 'Service Areas',
+      href: '/service-areas',
+      icon: MapPin,
+      badge: null,
+      badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      roles: ['owner', 'office_manager', 'dispatcher'],
     },
     {
       label: 'Knowledge Base',

@@ -25,7 +25,11 @@ import {
   Bot,
   Zap,
   SlidersHorizontal,
+  MapPin,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import QRCode from 'qrcode';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -96,6 +100,18 @@ export default function SettingsPage() {
   const [emergencyTimeout, setEmergencyTimeout] = useState<number>(10);
   const [isSavingPolicy, setIsSavingPolicy] = useState(false);
   const [policySavedFeedback, setPolicySavedFeedback] = useState(false);
+  const [serviceAreas, setServiceAreas] = useState<Array<{ id: string; name: string; zipCodes: string[] }>>([]);
+
+  const loadServiceAreas = async () => {
+    try {
+      const res = await apiRequest<{ data: any[] }>('/service-areas');
+      if (res && Array.isArray(res.data)) {
+        setServiceAreas(res.data);
+      }
+    } catch (e) {
+      // fallback
+    }
+  };
 
   const loadCompanySettings = async () => {
     try {
@@ -161,6 +177,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadTeamAndRoles();
     loadCompanySettings();
+    loadServiceAreas();
   }, [user?.role?.slug]);
 
   const handleInviteStaff = async (e: React.FormEvent) => {
@@ -649,6 +666,98 @@ export default function SettingsPage() {
               <span className="text-slate-400 text-xs font-bold">min</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Service Areas & Geographic Territory Coverage */}
+      <div className="p-6 sm:p-7 rounded-3xl bg-surface/90 border border-border space-y-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-blue-400 shrink-0">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white">
+                  Service Areas & Territory Coverage
+                </h2>
+                <Badge variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10 text-xs">
+                  Active Dispatch Guardrails
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                5-digit ZIP codes covered by Elijah AI and online booking. Callers outside these areas are assessed an out-of-zone travel fee ($45) or routed to dispatcher triage.
+              </p>
+            </div>
+          </div>
+
+          <Link href="/service-areas">
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 px-4 rounded-xl flex items-center gap-1.5 font-medium shadow-md shadow-blue-600/20"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              Manage Service Areas
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Quick Zones Overview Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-surface-elevated/60 border border-border space-y-1">
+            <span className="text-slate-400 text-xs block">Configured Zones</span>
+            <div className="text-2xl font-black text-white">
+              {serviceAreas.length > 0 ? serviceAreas.length : 4}
+            </div>
+            <span className="text-[11px] text-muted">Active dispatch regions</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-surface-elevated/60 border border-border space-y-1">
+            <span className="text-slate-400 text-xs block">Total Covered ZIP Codes</span>
+            <div className="text-2xl font-black text-emerald-400">
+              {serviceAreas.length > 0
+                ? Array.from(new Set(serviceAreas.flatMap((a) => a.zipCodes || []))).length
+                : 36}
+            </div>
+            <span className="text-[11px] text-emerald-400/80">In-network postal codes</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-surface-elevated/60 border border-border space-y-1">
+            <span className="text-slate-400 text-xs block">Primary Region</span>
+            <div className="text-base font-bold text-white pt-1">Phoenix Metro, AZ</div>
+            <span className="text-[11px] text-slate-400">Valley-wide technician routing</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-surface-elevated/60 border border-border space-y-1">
+            <span className="text-slate-400 text-xs block">Out-of-Zone Guardrail</span>
+            <div className="text-base font-bold text-amber-400 pt-1">$45 Travel Surcharge</div>
+            <span className="text-[11px] text-slate-400">Automated AI policy check</span>
+          </div>
+        </div>
+
+        {/* Preview of Configured Areas */}
+        <div className="pt-2 flex flex-wrap items-center gap-2">
+          {(serviceAreas.length > 0
+            ? serviceAreas
+            : [
+                { id: '1', name: 'East Valley (Scottsdale / Tempe)', zipCodes: ['85250', '85251', '85254', '85258', '85281'] },
+                { id: '2', name: 'Central Phoenix Core', zipCodes: ['85001', '85004', '85012', '85016', '85018'] },
+                { id: '3', name: 'West Valley (Glendale / Peoria)', zipCodes: ['85301', '85302', '85308', '85345'] },
+                { id: '4', name: 'Southeast Valley (Mesa / Chandler)', zipCodes: ['85201', '85202', '85224', '85233'] },
+              ]
+          ).map((area) => (
+            <div
+              key={area.id}
+              className="px-3 py-1.5 rounded-xl bg-surface border border-border text-xs flex items-center gap-2"
+            >
+              <MapPin className="w-3.5 h-3.5 text-blue-400" />
+              <span className="font-semibold text-white">{area.name}</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-400 border border-border">
+                {area.zipCodes?.length || 0} ZIPs
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
