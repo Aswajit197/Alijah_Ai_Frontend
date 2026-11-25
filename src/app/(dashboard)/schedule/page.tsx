@@ -129,6 +129,9 @@ function ScheduleContent() {
   const [dispatchServiceAddress, setDispatchServiceAddress] = useState('');
   const [dispatchGateCode, setDispatchGateCode] = useState('');
   const [dispatchReportedIssue, setDispatchReportedIssue] = useState('');
+  const [aiRecommendation, setAiRecommendation] = useState<any | null>(null);
+  const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
+  const [checkIns, setCheckIns] = useState<any[]>([]);
 
   // Form states - New Job
   const [selectedCustId, setSelectedCustId] = useState('');
@@ -154,14 +157,18 @@ function ScheduleContent() {
     }
     setError(null);
     try {
-      const [jobsData, techsData, custsData] = await Promise.all([
+      const [jobsData, techsData, custsData, checkInsData] = await Promise.all([
         apiRequest<Job[]>(`/jobs?date=${selectedDate}${statusFilter !== 'ALL' ? `&status=${statusFilter}` : ''}`),
         apiRequest<Technician[]>('/jobs/technicians'),
         apiRequest<CustomerOption[]>('/customers'),
+        apiRequest<{ data: any[] }>('/technician-check-ins').catch(() => null),
       ]);
       setJobs(jobsData);
       setTechnicians(techsData);
       setCustomers(custsData);
+      if (checkInsData && Array.isArray((checkInsData as any).data)) {
+        setCheckIns((checkInsData as any).data);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load scheduling data');
     } finally {
@@ -370,6 +377,19 @@ function ScheduleContent() {
     setDispatchGateCode(job.gateCode || job.customer?.gateCode || '');
     setDispatchReportedIssue(job.reportedIssue || job.title || '');
     setIsDispatchModalOpen(true);
+
+    // Fetch AI technician recommendations for this job
+    setAiRecommendation(null);
+    setIsLoadingRecommendation(true);
+    apiRequest<any>(`/jobs/${job.id}/technician-recommendations`)
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res as any)?.data || [];
+        if (list && list.length > 0) {
+          setAiRecommendation(list[0]);
+        }
+      })
+      .catch((err) => console.warn('Could not load AI recommendations:', err))
+      .finally(() => setIsLoadingRecommendation(false));
   };
 
   // Dedicated helper to smoothly center the card inside the scrollable <main> container
@@ -891,6 +911,30 @@ function ScheduleContent() {
                             </div>
                           )}
 
+                          {/* Mid-Job Technician Live Check-In Pill */}
+                          {(() => {
+                            const jobCheckIn = checkIns.find(
+                              (c) => c.serviceRequestId === j.id || (j.technician && c.technicianName === j.technician.name)
+                            );
+                            if (!jobCheckIn) return null;
+                            return (
+                              <div className="p-2 rounded-xl bg-primary/10 border border-primary/25 text-[11px] flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 text-primary font-semibold truncate">
+                                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                                  <span>Elijah Check-In: {jobCheckIn.progress}%</span>
+                                  {jobCheckIn.challenges && (
+                                    <span className="text-amber-300 font-normal truncate">({jobCheckIn.challenges})</span>
+                                  )}
+                                </div>
+                                {jobCheckIn.isHelpNeeded && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30">
+                                    HELP NEEDED
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+
                           {/* Status Lifecycle Action Buttons */}
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
                             {j.status === 'SCHEDULED' && (() => {
@@ -1389,6 +1433,45 @@ function ScheduleContent() {
               </button>
             </div>
           </div>
+
+          {/* AI Technician Match Recommendation */}
+          {isLoadingRecommendation ? (
+            <div className="p-3 rounded-xl bg-surface border border-border text-xs text-muted flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span>Elijah Dispatcher calculating optimal technician match...</span>
+            </div>
+          ) : aiRecommendation ? (
+            <div className="p-3.5 rounded-xl bg-gradient-to-r from-primary/20 via-blue-500/10 to-transparent border border-primary/40 flex items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-primary/25 border border-primary/40 flex items-center justify-center text-primary shrink-0">
+                  <Sparkles className="w-4 h-4 fill-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white">Elijah AI Match: {aiRecommendation.technician?.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                      Top Match
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    {aiRecommendation.why} · {aiRecommendation.distanceMiles} mi away · {aiRecommendation.jobsThatDay} job(s) today
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (aiRecommendation.technician?.id) {
+                    setAssignedTechId(aiRecommendation.technician.id);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md transition-all shrink-0 flex items-center gap-1"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Apply Match
+              </button>
+            </div>
+          ) : null}
 
           {/* Select Field Technician */}
           <div>
