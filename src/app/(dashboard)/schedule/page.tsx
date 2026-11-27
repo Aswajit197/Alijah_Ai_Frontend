@@ -279,6 +279,36 @@ function ScheduleContent() {
         }),
       });
 
+      // Optimistic instant state update: Move job immediately to newly assigned technician lane!
+      setJobs((prev) =>
+        prev.map((j) => {
+          if (j.id === activeJobForDispatch.id) {
+            const newTech = technicians.find((t) => t.id === assignedTechId);
+            return {
+              ...j,
+              technicianId: assignedTechId,
+              technician: newTech
+                ? { id: newTech.id, name: newTech.name, email: newTech.email, phone: newTech.phone }
+                : j.technician,
+              scheduledDate: targetDate,
+              scheduledStart: startIso,
+              scheduledEnd: endIso,
+              priority: jobPriority as any,
+              serviceAddress: dispatchServiceAddress.trim() || j.serviceAddress,
+              gateCode: dispatchGateCode.trim() || j.gateCode,
+              reportedIssue: dispatchReportedIssue.trim() || j.reportedIssue,
+              notes: jobNotes.trim() || j.notes,
+              status: 'DISPATCHED' as any,
+            };
+          }
+          return j;
+        })
+      );
+
+      if (targetDate !== selectedDate) {
+        setSelectedDate(targetDate);
+      }
+
       setIsDispatchModalOpen(false);
       setActiveJobForDispatch(null);
       await loadData(false);
@@ -356,7 +386,19 @@ function ScheduleContent() {
           t.role?.slug === 'technician' ||
           t.role?.name?.toLowerCase().includes('tech')
       ) || technicians[0];
-    setAssignedTechId(job.technicianId || (preferredTech ? preferredTech.id : ''));
+
+    // If job was previously assigned to company owner/office staff, default to dedicated field tech
+    const isOwnerOrOffice =
+      job.technician?.email === 'amohapatra@pods365.com' ||
+      !technicians.some(
+        (t) =>
+          t.id === job.technicianId &&
+          (t.role?.slug === 'technician' || t.role?.name?.toLowerCase().includes('tech'))
+      );
+
+    setAssignedTechId(
+      isOwnerOrOffice && preferredTech ? preferredTech.id : (job.technicianId || preferredTech?.id || '')
+    );
     setJobPriority(job.priority || 'NORMAL');
     setDispatchDate(
       job.scheduledDate
