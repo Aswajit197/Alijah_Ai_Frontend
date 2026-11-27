@@ -72,7 +72,8 @@ export default function BrandedCustomerBookingPage() {
 
   // Load company branding dynamically based on /book/[slug]
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    // const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1';
     const fetchCompany = async () => {
       setIsLoadingCompany(true);
       try {
@@ -113,7 +114,8 @@ export default function BrandedCustomerBookingPage() {
     setError(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      // const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1';
       const res = await fetch(`${apiUrl}/jobs/public-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

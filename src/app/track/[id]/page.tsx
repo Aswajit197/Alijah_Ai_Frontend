@@ -70,7 +70,8 @@ export default function PublicJobTrackingPage() {
     if (isManual) setIsRefreshing(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      // const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1';
       const res = await fetch(`${apiUrl}/jobs/public-track/${jobId}`);
       const data = await res.json();
 
@@ -99,7 +100,8 @@ export default function PublicJobTrackingPage() {
     // Connect to Server-Sent Events (SSE) Stream
     const setupSSE = () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+        // const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1';
         const streamUrl = `${apiUrl}/jobs/public-track/${jobId}/stream`;
         eventSource = new EventSource(streamUrl);
 

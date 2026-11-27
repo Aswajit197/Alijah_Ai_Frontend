@@ -3,10 +3,14 @@ import { getAuthToken, clearAuthSession } from './auth';
 export type ServiceTarget = 'core' | 'voice' | 'ai' | 'workflow';
 
 const SERVICE_BASES: Record<ServiceTarget, string> = {
-  core: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
-  voice: process.env.NEXT_PUBLIC_VOICE_API_URL || 'http://localhost:4002/api/v1',
-  ai: process.env.NEXT_PUBLIC_AI_API_URL || 'http://localhost:4003/api/v1',
-  workflow: process.env.NEXT_PUBLIC_WORKFLOW_API_URL || 'http://localhost:4004/api/v1',
+  // core: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
+  core: process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1',
+  // voice: process.env.NEXT_PUBLIC_VOICE_API_URL || 'http://localhost:4002/api/v1',
+  voice: process.env.NEXT_PUBLIC_VOICE_API_URL || 'https://elijahapi.pashupatashastra.in/voice/api/v1',
+  // ai: process.env.NEXT_PUBLIC_AI_API_URL || 'http://localhost:4003/api/v1',
+  ai: process.env.NEXT_PUBLIC_AI_API_URL || 'https://elijahapi.pashupatashastra.in/ai/api/v1',
+  // workflow: process.env.NEXT_PUBLIC_WORKFLOW_API_URL || 'http://localhost:4004/api/v1',
+  workflow: process.env.NEXT_PUBLIC_WORKFLOW_API_URL || 'https://elijahapi.pashupatashastra.in/workflow/api/v1',
 };
 
 export class ApiError extends Error {

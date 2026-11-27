@@ -79,7 +79,8 @@ export default function WebCallWidget({
 
     try {
       // 1. Obtain public web-call token from backend
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      // const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1';
       const res = await fetch(`${apiUrl}/jobs/public-web-call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
