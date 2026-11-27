@@ -66,7 +66,8 @@ export function NotificationDropdown() {
 
     // 2. Connect to real-time SSE stream
     const token = getAuthToken();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    // const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://elijahapi.pashupatashastra.in/api/v1';
     const streamUrl = `${apiUrl}/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
     let eventSource: EventSource | null = null;
