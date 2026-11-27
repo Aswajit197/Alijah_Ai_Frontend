@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   Zap,
   ArrowRight,
@@ -13,6 +14,8 @@ import {
   Server,
   Building2,
   UserCheck,
+  Calendar,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +100,7 @@ function LoginForm() {
         body: JSON.stringify({
           email: targetEmail.toLowerCase().trim(),
           password: targetPass,
+          tenantSlug: 'vanguard-electric',
         }),
       });
 
@@ -420,6 +424,32 @@ function LoginForm() {
                     </div>
                     <p className="text-[9px] text-muted truncate mt-0.5 font-mono">aswajit</p>
                   </button>
+                </div>
+
+                {/* 1-Click Customer Online Booking Portal for Demo */}
+                <div className="pt-2">
+                  <Link
+                    href="/book/vanguard-electric"
+                    className="group flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-ai/10 via-primary/10 to-surface-elevated/90 border border-ai/30 hover:border-ai/60 text-white transition-all shadow-sm hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-ai/20 text-ai flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-xs font-bold flex items-center gap-1.5 text-white">
+                          <span>Book Service Demo</span>
+                          <span className="text-[10px] font-medium text-ai font-mono px-1.5 py-0.2 rounded bg-ai/10 border border-ai/20">
+                            /book
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          Experience 24/7 AI Voice & Online Booking →
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="w-4 h-4 text-ai group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
                 </div>
               </div>
             )}

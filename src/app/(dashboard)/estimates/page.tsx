@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
@@ -21,21 +20,17 @@ import {
   Check,
   X,
   Eye,
-  ExternalLink,
-  Flame,
-  Zap,
-  Wrench,
-  Percent,
-  RefreshCw,
   Share2,
-  LayoutList,
-  LayoutGrid,
   Bot,
   User,
-  ArrowUpRight,
   PhoneCall,
   Calendar,
-  Filter,
+  Layers,
+  MapPin,
+  FileCheck,
+  Wrench,
+  Zap,
+  Flame,
 } from 'lucide-react';
 
 export type ProposalStatus = 'ALL' | 'DRAFT' | 'SENT' | 'VIEWED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
@@ -44,8 +39,8 @@ export interface TierOption {
   name: string; // "Good" | "Better" | "Best"
   label: string;
   price: number;
-  monthlyEstimate: number; // e.g. $89/mo
-  warrantyYears: string;
+  monthlyEstimate?: number;
+  warrantyYears?: string;
   isRecommended?: boolean;
   features: string[];
 }
@@ -68,11 +63,13 @@ export interface Proposal {
     viewsCount?: number;
   };
   createdDateText: string;
-  selectedTierIndex: number;
-  grossMarginPct: number;
+  selectedTierIndex?: number;
+  grossMarginPct?: number;
   sentDateText: string;
   expiryText: string;
-  tiers: [TierOption, TierOption, TierOption];
+  hasTiers?: boolean;
+  tiers?: TierOption[];
+  scopeItems?: string[];
   notes?: string;
 }
 
@@ -94,6 +91,15 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 41.0,
     sentDateText: 'Auto-drafted by Elijah from dispatch diagnostic',
     expiryText: 'Valid for 14 days after send',
+    hasTiers: true,
+    scopeItems: [
+      'Removal & environmentally safe disposal of existing 12-year HVAC unit',
+      'Installation of high-efficiency multi-stage heat pump system',
+      'New digital programmable thermostat & Wi-Fi gateway configuration',
+      'Supply plenum modification & vibration dampening pad installation',
+      'Complete nitrogen pressure test, evacuation, and manufacturer refrigerant charge',
+      'City permit procurement and final inspection sign-off',
+    ],
     tiers: [
       {
         name: 'Good',
@@ -144,6 +150,14 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 38.5,
     sentDateText: 'Sent 2h ago via SMS',
     expiryText: 'Valid for 7 days',
+    hasTiers: true,
+    scopeItems: [
+      'Complete disconnect & removal of aging rooftop split system',
+      'Installation of Carrier Performance 16 SEER2 heat pump system',
+      'Smart Ecobee thermostat installation & customer mobile app pairing',
+      'Duct seal verification and airflow balancing across all registers',
+      '10-Year parts and 2-year labor comprehensive warranty',
+    ],
     tiers: [
       {
         name: 'Good',
@@ -160,7 +174,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
         monthlyEstimate: 129,
         warrantyYears: '10-Yr Parts · 2-Yr Labor',
         isRecommended: true,
-        features: ['Two-stage compressor for 28% lower electric bills', 'Variable speed blower motor for quiet comfort', 'Smart Wi-Fi Ecobee thermostat included'],
+        features: ['Two-stage compressor for lower bills', 'Variable speed blower motor', 'Smart Wi-Fi Ecobee thermostat included'],
       },
       {
         name: 'Best',
@@ -168,7 +182,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
         price: 14500,
         monthlyEstimate: 168,
         warrantyYears: '10-Yr Parts · 5-Yr Labor',
-        features: ['Ultra-efficient inverter (modulates from 25% to 100%)', 'Whisper-quiet operation as low as 58 dBA', 'Infinity Smart Control with humidity management'],
+        features: ['Ultra-efficient inverter system', 'Whisper-quiet operation as low as 58 dBA', 'Infinity Smart Control'],
       },
     ],
   },
@@ -188,32 +202,13 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 45.0,
     sentDateText: 'Digitally signed Oct 9',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: '100A Dedicated Subpanel Installation',
-        price: 1650,
-        monthlyEstimate: 32,
-        warrantyYears: '5-Yr Workmanship',
-        features: ['Square D QO 100A 12-space panel', 'Surface mount conduit run to workshop', 'Full AFCI/GFCI protection'],
-      },
-      {
-        name: 'Better',
-        label: '125A High-Capacity Subpanel with Surge Protector',
-        price: 2450,
-        monthlyEstimate: 45,
-        warrantyYears: '10-Yr Workmanship',
-        isRecommended: true,
-        features: ['125A 24-space panel capacity', 'Whole-home Type 2 surge arrester', 'Two 240V 50A welder/tool outlets'],
-      },
-      {
-        name: 'Best',
-        label: '200A Smart Load Center & EV Pre-wire',
-        price: 3800,
-        monthlyEstimate: 65,
-        warrantyYears: 'Lifetime Panel · 10-Yr Labor',
-        features: ['Smart monitoring breakers with app energy tracking', 'EV Level 2 60A circuit pre-installed', 'Generator interlock bracket included'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Install Square D QO 100A dedicated subpanel in detached garage/workshop',
+      'Surface-mounted EMT conduit run from main service panel',
+      'Dual 50-amp heavy duty branch circuits for welder and high-draw tools',
+      'Dual-function AFCI/GFCI circuit breaker protection according to NEC code',
+      'Municipal electrical inspection and permit sign-off',
     ],
   },
   {
@@ -237,6 +232,14 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 42.0,
     sentDateText: 'Sent Thu, Oct 8 via SMS & Email',
     expiryText: 'Valid for 14 days',
+    hasTiers: true,
+    scopeItems: [
+      'Drain, disconnect, and haul away leaking 50-gallon tank water heater',
+      'Supply and install Navien NPE-240A2 condensing tankless unit (11.2 GPM)',
+      'Run new 2-inch PVC intake and exhaust venting through exterior wall',
+      'Upgrade gas line feed to high-flow 3/4" with dedicated gas shutoff valve',
+      'Install built-in recirculation loop for on-demand instant hot water',
+    ],
     tiers: [
       {
         name: 'Good',
@@ -253,7 +256,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
         monthlyEstimate: 68,
         warrantyYears: '15-Yr Heat Exchanger · 5-Yr Parts · 3-Yr Labor',
         isRecommended: true,
-        features: ['ComfortFlow recirc pump for instant hot water', 'High capacity 11.2 GPM (supports 4 showers simultaneously)', 'NaviLink Wi-Fi phone monitoring'],
+        features: ['ComfortFlow recirc pump for instant hot water', 'High capacity 11.2 GPM', 'NaviLink Wi-Fi phone monitoring'],
       },
       {
         name: 'Best',
@@ -261,7 +264,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
         price: 6400,
         monthlyEstimate: 85,
         warrantyYears: 'Lifetime Scale Guard · 15-Yr Exchanger',
-        features: ['Includes PeakFlow anti-scale cartridge system', 'Protects plumbing against harsh desert calcium buildup', 'Full bypass isolation valves included'],
+        features: ['Includes PeakFlow anti-scale cartridge system', 'Protects against desert calcium buildup', 'Full bypass isolation valves'],
       },
     ],
   },
@@ -282,32 +285,13 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 39.0,
     sentDateText: 'Accepted & promoted to Project PRJ-302',
     expiryText: 'Converted to Install',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Lennox Merit 14.5 SEER2',
-        price: 11200,
-        monthlyEstimate: 125,
-        warrantyYears: '10-Yr Compressor',
-        features: ['Single-stage scroll', 'Direct-drive blower'],
-      },
-      {
-        name: 'Better',
-        label: 'Lennox Elite 16 SEER2 High Efficiency',
-        price: 14895,
-        monthlyEstimate: 155,
-        warrantyYears: '10-Yr Parts & Labor',
-        isRecommended: true,
-        features: ['Two-stage compressor', 'QuietZone sound dampening'],
-      },
-      {
-        name: 'Best',
-        label: 'Lennox Signature Ultimate Inverter',
-        price: 17500,
-        monthlyEstimate: 195,
-        warrantyYears: '12-Yr Complete Unit Replacement',
-        features: ['Variable capacity 20+ SEER2', 'S40 Smart Thermostat with air quality monitoring'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Complete teardown of failed compressor unit and evaporator coil',
+      'Installation of Lennox Elite 16 SEER2 high-efficiency heat pump system',
+      'Dual-stage cooling configuration with QuietZone acoustic dampening',
+      'Full electrical whip and disconnect box replacement',
+      '10-Year parts and labor guarantee',
     ],
   },
   {
@@ -317,40 +301,20 @@ const INITIAL_PROPOSALS: Proposal[] = [
     customerPhone: '(602) 555-4499',
     serviceAddress: '2411 W Glendale Ave, Phoenix, AZ 85021',
     tradeType: 'ELECTRICAL',
-    title: 'Electrical upgrade',
+    title: 'Electrical upgrade & meter socket replacement',
     amount: 2100,
     status: 'EXPIRED',
     repName: 'Marco Diaz',
     createdDateText: 'Wed, Oct 7',
     selectedTierIndex: 0,
     grossMarginPct: 40.0,
-    sentDateText: 'Sent Sep 23 (30 days expired)',
+    sentDateText: 'Sent Sep 23 (Expired)',
     expiryText: 'Expired',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Meter Socket & Mast Replacement',
-        price: 2100,
-        monthlyEstimate: 35,
-        warrantyYears: '5-Yr Workmanship',
-        features: ['Overhead service mast riser', 'Utility seal coordination'],
-      },
-      {
-        name: 'Better',
-        label: 'Heavy-Duty Meter Combo with Main Disconnect',
-        price: 3200,
-        monthlyEstimate: 50,
-        warrantyYears: '10-Yr Workmanship',
-        features: ['200A exterior disconnect switch', 'Surge protector built-in'],
-      },
-      {
-        name: 'Best',
-        label: 'Whole Home Underground Conversion & Panel',
-        price: 5400,
-        monthlyEstimate: 75,
-        warrantyYears: 'Lifetime Panel',
-        features: ['Underground utility trenching', 'Full copper bus panel'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Replace weatherhead, mast riser conduit, and meter enclosure',
+      'Coordinate scheduled power disconnect and re-energization with APS utility',
+      'Install heavy-duty copper grounding electrode system and bonding jumper',
     ],
   },
   {
@@ -369,31 +333,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 40.5,
     sentDateText: 'Signed Oct 6',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Carrier Base 14 SEER2',
-        price: 10500,
-        monthlyEstimate: 120,
-        warrantyYears: '10-Yr Parts',
-        features: ['Single-stage package unit'],
-      },
-      {
-        name: 'Better',
-        label: 'Carrier Performance 16 SEER2',
-        price: 14895,
-        monthlyEstimate: 155,
-        warrantyYears: '10-Yr Parts & 2-Yr Labor',
-        features: ['Dual stage quiet package'],
-      },
-      {
-        name: 'Best',
-        label: 'Carrier Infinity Variable',
-        price: 17200,
-        monthlyEstimate: 190,
-        warrantyYears: '10-Yr Complete Replacement',
-        features: ['Inverter technology'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Replace aging package unit on roof curb with new Carrier Performance unit',
+      'Crane hoist and secure rigging to rooftop mounting curb',
+      'New supply/return curb transition duct adaptors and weatherproof flashing',
     ],
   },
   {
@@ -403,7 +347,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
     customerPhone: '(480) 555-3344',
     serviceAddress: '7114 E Stetson Dr, Scottsdale, AZ 85251',
     tradeType: 'PLUMBING',
-    title: 'Water heater replacement',
+    title: 'Commercial water heater replacement',
     amount: 2450,
     status: 'ACCEPTED',
     repName: 'Jessica Thompson',
@@ -412,31 +356,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 44.0,
     sentDateText: 'Accepted Oct 5',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Commercial 50-Gal Gas High Recovery',
-        price: 2450,
-        monthlyEstimate: 40,
-        warrantyYears: '6-Yr Tank · 1-Yr Labor',
-        features: ['Heavy-duty commercial anode rod', 'Brass drain valve'],
-      },
-      {
-        name: 'Better',
-        label: 'Commercial 75-Gal High Recovery Unit',
-        price: 3600,
-        monthlyEstimate: 55,
-        warrantyYears: '10-Yr Tank · 2-Yr Labor',
-        features: ['Dual anodes', 'Electronic ignition'],
-      },
-      {
-        name: 'Best',
-        label: 'Commercial Dual On-Demand Tankless Array',
-        price: 5800,
-        monthlyEstimate: 80,
-        warrantyYears: '15-Yr Heat Exchanger',
-        features: ['Manifolded twin units for redundancy in restaurant'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Commercial 50-Gal gas water heater emergency swap for restaurant kitchen',
+      'Heavy-duty commercial anode rod and brass drain valve installation',
+      'Gas connection flex line replacement and bubble leak testing',
     ],
   },
   {
@@ -446,7 +370,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
     customerPhone: '(602) 555-7711',
     serviceAddress: '1420 W Bethany Home Rd, Phoenix, AZ 85013',
     tradeType: 'ELECTRICAL',
-    title: 'Electrical upgrade',
+    title: 'Main breaker panel replacement',
     amount: 1650,
     status: 'ACCEPTED',
     repName: 'Daniel Reed',
@@ -455,31 +379,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 43.0,
     sentDateText: 'Accepted Oct 1',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: '100A Panel Replacement',
-        price: 1650,
-        monthlyEstimate: 30,
-        warrantyYears: '10-Yr Panel',
-        features: ['Standard panel replace'],
-      },
-      {
-        name: 'Better',
-        label: '200A Panel Upgrade',
-        price: 2800,
-        monthlyEstimate: 45,
-        warrantyYears: 'Lifetime Panel',
-        features: ['Copper bus upgrade'],
-      },
-      {
-        name: 'Best',
-        label: '200A Panel + Generator Interlock',
-        price: 3900,
-        monthlyEstimate: 60,
-        warrantyYears: 'Lifetime Panel',
-        features: ['Backup ready'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      '100A main service panel changeout with Square D QO breaker center',
+      'Relabel all branch circuits and balance load across phases',
+      'Install whole-home surge protector in panel',
     ],
   },
   {
@@ -498,31 +402,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 38.0,
     sentDateText: 'Expired Sep 30',
     expiryText: 'Expired',
-    tiers: [
-      {
-        name: 'Good',
-        label: '50-Gal Electric Standard',
-        price: 3200,
-        monthlyEstimate: 45,
-        warrantyYears: '6-Yr Tank',
-        features: ['Standard electric replacement'],
-      },
-      {
-        name: 'Better',
-        label: 'Hybrid Heat Pump Water Heater 50-Gal',
-        price: 4600,
-        monthlyEstimate: 65,
-        warrantyYears: '10-Yr Tank',
-        features: ['Saves up to $330/yr in electricity'],
-      },
-      {
-        name: 'Best',
-        label: 'Hybrid Heat Pump Water Heater 65-Gal + Leak Detection',
-        price: 5400,
-        monthlyEstimate: 75,
-        warrantyYears: '10-Yr Complete Replacement',
-        features: ['Automatic water shutoff valve'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      '50-Gallon electric water heater replacement with expansion tank',
+      'New brass ball valve shutoff and braided stainless water flex lines',
+      'Safety pan and drain pipe plumbed to exterior',
     ],
   },
   {
@@ -546,31 +430,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 39.0,
     sentDateText: 'Sent via SMS Sep 30',
     expiryText: 'Valid for 7 days',
-    tiers: [
-      {
-        name: 'Good',
-        label: '50-Gal Standard Atmospheric Gas',
-        price: 3200,
-        monthlyEstimate: 45,
-        warrantyYears: '6-Yr Tank',
-        features: ['Bradford White defender safety system'],
-      },
-      {
-        name: 'Better',
-        label: '50-Gal Power Vent Energy Star Gas',
-        price: 4300,
-        monthlyEstimate: 60,
-        warrantyYears: '10-Yr Tank',
-        features: ['Quiet side-wall power blower'],
-      },
-      {
-        name: 'Best',
-        label: 'Tankless Condensing Ultra-Low NOx',
-        price: 5800,
-        monthlyEstimate: 80,
-        warrantyYears: '15-Yr Heat Exchanger',
-        features: ['Continuous hot water'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      '50-Gallon atmospheric gas water heater with Bradford White Defender system',
+      'New thermostatic mixing valve to prevent scalding',
+      'Gas valve replacement and chimney draft test verification',
     ],
   },
   {
@@ -589,31 +453,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 43.5,
     sentDateText: 'Accepted Sep 28',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Trane 4-Ton 14 SEER2',
-        price: 13500,
-        monthlyEstimate: 145,
-        warrantyYears: '10-Yr Parts',
-        features: ['Single-stage'],
-      },
-      {
-        name: 'Better',
-        label: 'Trane 4-Ton 16 SEER2',
-        price: 16500,
-        monthlyEstimate: 180,
-        warrantyYears: '10-Yr Parts & Labor',
-        features: ['Two-stage'],
-      },
-      {
-        name: 'Best',
-        label: 'Trane 4-Ton Variable Speed Inverter Dual Fuel',
-        price: 19750,
-        monthlyEstimate: 215,
-        warrantyYears: '12-Yr Unit Replacement',
-        features: ['Gas furnace + variable heat pump combo'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Install Trane 4-Ton Variable Speed Inverter Dual Fuel System',
+      'High-efficiency gas furnace paired with variable heat pump',
+      'New media air filter cabinet and high-MERV filter rack',
     ],
   },
   {
@@ -623,7 +467,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
     customerPhone: '(602) 555-9000',
     serviceAddress: '9200 N 7th Ave, Phoenix, AZ 85021',
     tradeType: 'ELECTRICAL',
-    title: 'Electrical upgrade',
+    title: 'Commercial lighting retrofit & panel service',
     amount: 2100,
     status: 'ACCEPTED',
     repName: 'Tara Quinn',
@@ -632,31 +476,10 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 42.0,
     sentDateText: 'Accepted Sep 27',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Commercial LED Retrofit & Breakers',
-        price: 2100,
-        monthlyEstimate: 35,
-        warrantyYears: '5-Yr Fixtures',
-        features: ['DLC certified panels'],
-      },
-      {
-        name: 'Better',
-        label: 'LED Retrofit + Daylight Harvesting Sensors',
-        price: 3400,
-        monthlyEstimate: 50,
-        warrantyYears: '7-Yr Fixtures',
-        features: ['Automated dimming'],
-      },
-      {
-        name: 'Best',
-        label: 'Smart Networked Commercial Lighting System',
-        price: 5200,
-        monthlyEstimate: 75,
-        warrantyYears: '10-Yr System',
-        features: ['App schedule management'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Commercial LED fixture retrofit across primary conference room and corridors',
+      'New commercial grade breakers and circuit verification',
     ],
   },
   {
@@ -666,7 +489,7 @@ const INITIAL_PROPOSALS: Proposal[] = [
     customerPhone: '(480) 555-5511',
     serviceAddress: '6801 E Thomas Rd, Scottsdale, AZ 85251',
     tradeType: 'PLUMBING',
-    title: 'Water heater replacement',
+    title: 'Tankless water heater installation',
     amount: 4900,
     status: 'ACCEPTED',
     repName: 'Daniel Reed',
@@ -675,31 +498,11 @@ const INITIAL_PROPOSALS: Proposal[] = [
     grossMarginPct: 41.0,
     sentDateText: 'Accepted Sep 23',
     expiryText: 'Accepted',
-    tiers: [
-      {
-        name: 'Good',
-        label: 'Standard Tankless NPE-180A2',
-        price: 3800,
-        monthlyEstimate: 55,
-        warrantyYears: '15-Yr Exchanger',
-        features: ['8.4 GPM'],
-      },
-      {
-        name: 'Better',
-        label: 'Recirculating Tankless NPE-240A2',
-        price: 4900,
-        monthlyEstimate: 68,
-        warrantyYears: '15-Yr Exchanger & 3-Yr Labor',
-        features: ['Built-in pump'],
-      },
-      {
-        name: 'Best',
-        label: 'NPE-240A2 + Whole Home Water Conditioning',
-        price: 6800,
-        monthlyEstimate: 90,
-        warrantyYears: 'Lifetime Anti-scale',
-        features: ['Descaler included'],
-      },
+    hasTiers: false,
+    scopeItems: [
+      'Install Navien NPE-240A2 recirculating tankless water heater',
+      'Direct vent piping through exterior stucco wall',
+      'Hard water scale prevention cartridge filter included',
     ],
   },
 ];
@@ -708,11 +511,11 @@ export default function EstimatesPage() {
   const [proposals, setProposals] = useState<Proposal[]>(INITIAL_PROPOSALS);
   const [statusFilter, setStatusFilter] = useState<ProposalStatus>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'TABLE' | 'CARDS'>('TABLE');
 
-  // Preview / Slide-over Drawer
+  // Active Proposal Modal
   const [activeProposal, setActiveProposal] = useState<Proposal | null>(null);
-  const [selectedTierInPreview, setSelectedTierInPreview] = useState<number>(1);
+  const [activeModalTab, setActiveModalTab] = useState<'STANDARD' | 'TIERS'>('STANDARD');
+  const [selectedTierInPreview, setSelectedTierInPreview] = useState<number>(0);
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -722,9 +525,10 @@ export default function EstimatesPage() {
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newTrade, setNewTrade] = useState<'HVAC' | 'ELECTRICAL' | 'PLUMBING'>('HVAC');
   const [newTitle, setNewTitle] = useState('');
-  const [newAmount, setNewAmount] = useState('11500');
+  const [newAmount, setNewAmount] = useState('2450');
+  const [enableTiers, setEnableTiers] = useState(false);
 
-  // Counts for Filter Badges matching demo screen
+  // Filter Counts
   const countAll = proposals.length;
   const countDraft = proposals.filter((p) => p.status === 'DRAFT').length;
   const countSent = proposals.filter((p) => p.status === 'SENT').length;
@@ -749,30 +553,48 @@ export default function EstimatesPage() {
     return true;
   });
 
-  // Calculate Open Pipeline value (Draft + Sent + Viewed)
+  // KPI Calculations
   const openPipelineValue = proposals
     .filter((p) => p.status === 'DRAFT' || p.status === 'SENT' || p.status === 'VIEWED')
     .reduce((sum, p) => sum + p.amount, 0);
+
+  const acceptedValue = proposals
+    .filter((p) => p.status === 'ACCEPTED')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const activeFollowUpsCount = proposals.filter((p) => p.followUpStatus?.isActive).length;
 
   // Quick SMS Follow-Up Trigger
   const handleSendReminder = (p: Proposal) => {
     setIsSendingSms(true);
     setTimeout(() => {
       setIsSendingSms(false);
-      setToastMessage(`Automated proposal reminder link sent to ${p.customerName} (${p.customerPhone})`);
+      setToastMessage(`Automated proposal link sent to ${p.customerName} via SMS (${p.customerPhone})`);
       setTimeout(() => setToastMessage(null), 4000);
-    }, 450);
+    }, 400);
   };
 
   // Simulate Digital Customer Acceptance
   const handleSimulateSign = (proposalId: string) => {
     setProposals((prev) =>
-      prev.map((p) => (p.id === proposalId ? { ...p, status: 'ACCEPTED', sentDateText: 'Digitally signed just now' } : p))
+      prev.map((p) => (p.id === proposalId ? { ...p, status: 'ACCEPTED', sentDateText: 'Digitally accepted just now' } : p))
     );
     if (activeProposal && activeProposal.id === proposalId) {
-      setActiveProposal((prev) => (prev ? { ...prev, status: 'ACCEPTED', sentDateText: 'Digitally signed just now' } : null));
+      setActiveProposal((prev) => (prev ? { ...prev, status: 'ACCEPTED', sentDateText: 'Digitally accepted just now' } : null));
     }
-    setToastMessage('🎉 Customer signature simulated! Proposal accepted and official project created.');
+    setToastMessage('🎉 Proposal accepted! Work order generated and scheduled for dispatch.');
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Send Estimate
+  const handleSendEstimate = (proposalId: string) => {
+    setProposals((prev) =>
+      prev.map((p) => (p.id === proposalId ? { ...p, status: 'SENT', sentDateText: 'Sent just now via SMS & Email' } : p))
+    );
+    if (activeProposal && activeProposal.id === proposalId) {
+      setActiveProposal((prev) => (prev ? { ...prev, status: 'SENT', sentDateText: 'Sent just now via SMS & Email' } : null));
+    }
+    setToastMessage('Estimate sent to customer with e-sign link!');
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -781,7 +603,7 @@ export default function EstimatesPage() {
     e.preventDefault();
     if (!newCustName || !newTitle) return;
 
-    const parsedAmount = parseFloat(newAmount) || 9500;
+    const parsedAmount = parseFloat(newAmount) || 2450;
     const newEstNum = `EST-${2500 + proposals.length}`;
 
     const newProposal: Proposal = {
@@ -797,37 +619,41 @@ export default function EstimatesPage() {
       status: 'DRAFT',
       repName: 'Daniel Reed',
       createdDateText: 'Today',
-      selectedTierIndex: 1,
-      grossMarginPct: 40.0,
       sentDateText: 'Drafted just now',
       expiryText: 'Valid for 14 days',
-      tiers: [
-        {
-          name: 'Good',
-          label: `${newTitle} — Standard`,
-          price: Math.round(parsedAmount * 0.8),
-          monthlyEstimate: Math.round((parsedAmount * 0.8) / 96),
-          warrantyYears: '5-Yr Warranty',
-          features: ['Standard system replacement', 'Code compliance & permit filing'],
-        },
-        {
-          name: 'Better',
-          label: `${newTitle} — High Efficiency`,
-          price: parsedAmount,
-          monthlyEstimate: Math.round(parsedAmount / 96),
-          warrantyYears: '10-Yr Warranty',
-          isRecommended: true,
-          features: ['High-efficiency model', 'Smart thermostat/controller included', 'Extended labor warranty'],
-        },
-        {
-          name: 'Best',
-          label: `${newTitle} — Premium Ultimate`,
-          price: Math.round(parsedAmount * 1.25),
-          monthlyEstimate: Math.round((parsedAmount * 1.25) / 96),
-          warrantyYears: 'Lifetime / 12-Yr Warranty',
-          features: ['Top-of-the-line inverter/efficiency', 'Whisper-quiet acoustic rating', 'Full 5-year labor guarantee'],
-        },
+      hasTiers: enableTiers,
+      scopeItems: [
+        `Complete service and materials for ${newTitle}`,
+        'Safety compliance check and standard trade permits',
+        'Clean work area guarantee and disposal of replaced parts',
+        'Standard 1-year workmanship warranty included',
       ],
+      tiers: enableTiers
+        ? [
+            {
+              name: 'Good',
+              label: `${newTitle} — Standard`,
+              price: Math.round(parsedAmount * 0.85),
+              monthlyEstimate: Math.round((parsedAmount * 0.85) / 48),
+              features: ['Standard system components', 'Standard 1-year warranty'],
+            },
+            {
+              name: 'Better',
+              label: `${newTitle} — High Efficiency`,
+              price: parsedAmount,
+              monthlyEstimate: Math.round(parsedAmount / 48),
+              isRecommended: true,
+              features: ['Upgraded energy efficiency rating', 'Extended 3-year warranty'],
+            },
+            {
+              name: 'Best',
+              label: `${newTitle} — Premium`,
+              price: Math.round(parsedAmount * 1.3),
+              monthlyEstimate: Math.round((parsedAmount * 1.3) / 48),
+              features: ['Top-tier equipment and quiet acoustics', '10-year comprehensive warranty'],
+            },
+          ]
+        : undefined,
     };
 
     setProposals([newProposal, ...proposals]);
@@ -835,6 +661,7 @@ export default function EstimatesPage() {
     setNewCustName('');
     setNewCustPhone('');
     setNewTitle('');
+    setEnableTiers(false);
     setToastMessage(`Created new estimate ${newEstNum}`);
     setTimeout(() => setToastMessage(null), 4000);
   };
@@ -852,39 +679,16 @@ export default function EstimatesPage() {
         </div>
       )}
 
-      {/* Header matching demo screen */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-5">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Estimates</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">${openPipelineValue.toLocaleString()} open pipeline</span>.
-            Estimates live in your field service software; Elijah tracks views and follows up.
+          <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Estimates & Quotes</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage customer quotes, track views, and automate SMS follow-ups through Elijah.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Toggle */}
-          <div className="flex items-center bg-surface border border-border rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode('TABLE')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === 'TABLE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <LayoutList className="w-3.5 h-3.5" />
-              Pipeline Table
-            </button>
-            <button
-              onClick={() => setViewMode('CARDS')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === 'CARDS' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              Tiered Cards
-            </button>
-          </div>
-
           <Button
             onClick={() => setIsCreateOpen(true)}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm shadow-sm flex items-center gap-2"
@@ -895,384 +699,328 @@ export default function EstimatesPage() {
         </div>
       </div>
 
-      {/* Filter Tabs matching demo UI pill bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+      {/* High-Level Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-surface/80 border border-border/70 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Open Pipeline</span>
+            <div className="text-2xl font-bold text-foreground mt-1">${openPipelineValue.toLocaleString()}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {countDraft + countSent + countViewed} active quotes awaiting customer decision
+            </p>
+          </div>
+          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+            <Clock className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-surface/80 border border-border/70 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accepted Quotes</span>
+            <div className="text-2xl font-bold text-emerald-400 mt-1">${acceptedValue.toLocaleString()}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{countAccepted} approved projects booked</p>
+          </div>
+          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-surface/80 border border-border/70 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Autonomous Follow-Ups</span>
+            <div className="text-2xl font-bold text-primary mt-1">{activeFollowUpsCount} Active</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Elijah SMS & email cadence keeping deals warm</p>
+          </div>
+          <div className="p-3 rounded-xl bg-primary/10 text-primary">
+            <Sparkles className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
           <button
             onClick={() => setStatusFilter('ALL')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
               statusFilter === 'ALL'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
             }`}
           >
-            All <span className="opacity-75 ml-1">{countAll}</span>
+            All <span className="opacity-75 ml-1">({countAll})</span>
           </button>
 
           <button
             onClick={() => setStatusFilter('DRAFT')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
               statusFilter === 'DRAFT'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
             }`}
           >
-            Draft <span className="opacity-75 ml-1">{countDraft}</span>
+            Draft <span className="opacity-75 ml-1">({countDraft})</span>
           </button>
 
           <button
             onClick={() => setStatusFilter('SENT')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
               statusFilter === 'SENT'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
             }`}
           >
-            Sent <span className="opacity-75 ml-1">{countSent}</span>
+            Sent <span className="opacity-75 ml-1">({countSent})</span>
           </button>
 
           <button
             onClick={() => setStatusFilter('VIEWED')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
               statusFilter === 'VIEWED'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
             }`}
           >
-            Viewed <span className="opacity-75 ml-1">{countViewed}</span>
+            Viewed <span className="opacity-75 ml-1">({countViewed})</span>
           </button>
 
           <button
             onClick={() => setStatusFilter('ACCEPTED')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
               statusFilter === 'ACCEPTED'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
             }`}
           >
-            Accepted <span className="opacity-75 ml-1">{countAccepted}</span>
-          </button>
-
-          <button
-            onClick={() => setStatusFilter('DECLINED')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
-              statusFilter === 'DECLINED'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
-                : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
-            }`}
-          >
-            Declined <span className="opacity-75 ml-1">{countDeclined}</span>
+            Accepted <span className="opacity-75 ml-1">({countAccepted})</span>
           </button>
 
           <button
             onClick={() => setStatusFilter('EXPIRED')}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap ${
               statusFilter === 'EXPIRED'
-                ? 'bg-[#0f172a] text-white dark:bg-white dark:text-[#0f172a]'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-surface hover:bg-surface-hover text-muted-foreground hover:text-foreground border border-border/60'
             }`}
           >
-            Expired <span className="opacity-75 ml-1">{countExpired}</span>
+            Expired <span className="opacity-75 ml-1">({countExpired})</span>
           </button>
         </div>
 
         {/* Search Input */}
-        <div className="relative w-full md:w-64">
+        <div className="relative w-full md:w-72">
           <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search estimates or customers..."
+            placeholder="Search estimates, customers..."
             className="w-full bg-surface border border-border rounded-lg pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       </div>
 
-      {/* Main Content Area */}
-      {viewMode === 'TABLE' ? (
-        /* ======================== 1. TABLE VIEW (Matching Demo Screenshot) ======================== */
-        <div className="rounded-xl border border-border bg-surface/95 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-hover/80 text-muted-foreground font-semibold border-b border-border uppercase tracking-wider text-[11px]">
+      {/* Main Clean Estimates Table */}
+      <div className="rounded-xl border border-border bg-surface/95 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-surface-hover/80 text-muted-foreground font-semibold border-b border-border uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3 px-4">Estimate</th>
+                <th className="py-3 px-4">Customer</th>
+                <th className="py-3 px-4">Service Scope</th>
+                <th className="py-3 px-4">Amount</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Rep</th>
+                <th className="py-3 px-4">Follow-Up</th>
+                <th className="py-3 px-4">Created</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {filteredProposals.length === 0 ? (
                 <tr>
-                  <th className="py-3 px-4">Estimate</th>
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Title</th>
-                  <th className="py-3 px-4">Amount</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Rep</th>
-                  <th className="py-3 px-4">Follow-up</th>
-                  <th className="py-3 px-4">Created</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <td colSpan={9} className="py-12 text-center text-muted-foreground">
+                    No estimates match the selected filter.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filteredProposals.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-muted-foreground">
-                      No estimates match the selected filter.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProposals.map((p) => {
-                    const isAwaitingOrSent = p.status === 'SENT' || p.status === 'VIEWED';
-                    return (
-                      <tr
-                        key={p.id}
-                        onClick={() => {
-                          setActiveProposal(p);
-                          setSelectedTierInPreview(p.selectedTierIndex);
-                        }}
-                        className="hover:bg-surface-hover/50 cursor-pointer transition-colors group"
-                      >
-                        {/* Estimate Number + Drafted by Elijah badge */}
-                        <td className="py-3 px-4 font-mono font-medium text-foreground whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span>{p.estimateNumber}</span>
-                            {p.isDraftedByElijah && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-sans font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 flex items-center gap-1">
-                                <Bot className="w-3 h-3 text-indigo-400" />
-                                Drafted by Elijah
-                              </span>
-                            )}
+              ) : (
+                filteredProposals.map((p) => {
+                  const isAwaitingOrSent = p.status === 'SENT' || p.status === 'VIEWED' || p.status === 'DRAFT';
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => {
+                        setActiveProposal(p);
+                        setActiveModalTab('STANDARD');
+                        setSelectedTierInPreview(p.selectedTierIndex || 0);
+                      }}
+                      className="hover:bg-surface-hover/50 cursor-pointer transition-colors group"
+                    >
+                      {/* Estimate Number */}
+                      <td className="py-3 px-4 font-mono font-medium text-foreground whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-primary">{p.estimateNumber}</span>
+                          {p.isDraftedByElijah && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 flex items-center gap-1">
+                              <Bot className="w-3 h-3 text-indigo-400" />
+                              AI Draft
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Customer Name */}
+                      <td className="py-3 px-4 font-semibold text-foreground whitespace-nowrap">
+                        <div>
+                          <div>{p.customerName}</div>
+                          <div className="text-[11px] text-muted-foreground font-normal">{p.customerPhone}</div>
+                        </div>
+                      </td>
+
+                      {/* Scope Title */}
+                      <td className="py-3 px-4 text-muted-foreground max-w-[280px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground shrink-0">
+                            {p.tradeType}
+                          </span>
+                          <span className="truncate text-foreground font-medium" title={p.title}>
+                            {p.title}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Amount */}
+                      <td className="py-3 px-4 font-bold text-foreground whitespace-nowrap text-sm">
+                        ${p.amount.toLocaleString()}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {p.status === 'ACCEPTED' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-fit">
+                            <Check className="w-3 h-3" /> Accepted
+                          </span>
+                        )}
+                        {p.status === 'DRAFT' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            Draft
+                          </span>
+                        )}
+                        {p.status === 'SENT' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            Sent
+                          </span>
+                        )}
+                        {p.status === 'VIEWED' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center gap-1 w-fit">
+                            <Eye className="w-3 h-3 text-purple-400" /> Viewed
+                          </span>
+                        )}
+                        {p.status === 'DECLINED' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                            Declined
+                          </span>
+                        )}
+                        {p.status === 'EXPIRED' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted/60 text-muted-foreground border border-border">
+                            Expired
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Rep Name */}
+                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">{p.repName}</td>
+
+                      {/* Follow-up */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {p.followUpStatus?.isActive ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[11px] text-muted-foreground">{p.followUpStatus.nextStep}</span>
                           </div>
-                        </td>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
+                        )}
+                      </td>
 
-                        {/* Customer Name */}
-                        <td className="py-3 px-4 font-semibold text-foreground whitespace-nowrap">
-                          {p.customerName}
-                        </td>
+                      {/* Created Date */}
+                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">{p.createdDateText}</td>
 
-                        {/* Title */}
-                        <td className="py-3 px-4 text-muted-foreground max-w-[260px] truncate" title={p.title}>
-                          {p.title}
-                        </td>
-
-                        {/* Amount */}
-                        <td className="py-3 px-4 font-semibold text-foreground whitespace-nowrap">
-                          ${p.amount.toLocaleString()}
-                        </td>
-
-                        {/* Status Pill */}
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          {p.status === 'ACCEPTED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              Accepted
-                            </span>
-                          )}
-                          {p.status === 'DRAFT' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              Draft
-                            </span>
-                          )}
-                          {p.status === 'SENT' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                              Sent
-                            </span>
-                          )}
-                          {p.status === 'VIEWED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center gap-1 w-fit">
-                              <Eye className="w-3 h-3 text-purple-400" /> Viewed
-                            </span>
-                          )}
-                          {p.status === 'DECLINED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                              Declined
-                            </span>
-                          )}
-                          {p.status === 'EXPIRED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted/60 text-muted-foreground border border-border">
-                              Expired
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Rep Name */}
-                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
-                          {p.repName}
-                        </td>
-
-                        {/* Follow-up Column matching demo screenshot */}
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          {p.followUpStatus?.isActive ? (
-                            <div>
-                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                active
-                              </span>
-                              <div className="text-[10px] text-muted-foreground mt-0.5">
-                                {p.followUpStatus.nextStep}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
-                        </td>
-
-                        {/* Created Date */}
-                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
-                          {p.createdDateText}
-                        </td>
-
-                        {/* Action buttons */}
-                        <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1.5">
-                            {isAwaitingOrSent && (
-                              <button
-                                onClick={() => handleSendReminder(p)}
-                                title="Send follow-up SMS now"
-                                className="p-1.5 rounded hover:bg-surface-hover text-primary transition-colors"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                      {/* Action buttons */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          {isAwaitingOrSent && (
                             <button
-                              onClick={() => {
-                                setActiveProposal(p);
-                                setSelectedTierInPreview(p.selectedTierIndex);
-                              }}
-                              className="px-2 py-1 rounded hover:bg-surface-hover text-muted-foreground hover:text-foreground text-[11px] font-medium flex items-center gap-1"
+                              onClick={() => handleSendReminder(p)}
+                              title="Send follow-up SMS reminder"
+                              className="p-1.5 rounded-md hover:bg-surface-hover text-primary transition-colors"
                             >
-                              Details
-                              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                              <Send className="w-3.5 h-3.5" />
                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                          )}
+                          <button
+                            onClick={() => {
+                              setActiveProposal(p);
+                              setActiveModalTab('STANDARD');
+                              setSelectedTierInPreview(p.selectedTierIndex || 0);
+                            }}
+                            className="px-2.5 py-1 rounded-md bg-surface-hover hover:bg-border text-foreground text-[11px] font-medium flex items-center gap-1 transition-colors"
+                          >
+                            View Quote
+                            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        /* ======================== 2. TIERED CARDS VIEW (Good / Better / Best) ======================== */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProposals.map((p) => {
-            const chosenTier = p.tiers[p.selectedTierIndex];
-            return (
-              <div
-                key={p.id}
-                className="rounded-2xl border border-border bg-surface/90 shadow-md flex flex-col p-6 space-y-4 hover:border-primary/50 transition-colors"
-              >
-                {/* Card Top */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-primary font-semibold">{p.estimateNumber}</span>
-                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        {p.tradeType}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-foreground text-base mt-1">{p.customerName}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-1">{p.title}</p>
-                  </div>
+      </div>
 
-                  {p.status === 'ACCEPTED' ? (
-                    <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 text-[10px]">
-                      Signed
-                    </Badge>
-                  ) : p.status === 'DRAFT' ? (
-                    <Badge variant="outline" className="text-amber-400 border-amber-500/30 text-[10px]">
-                      Draft
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-blue-400 border-blue-500/30 text-[10px]">
-                      Awaiting Sign
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Price Display */}
-                <div className="bg-background/80 border border-border/80 rounded-xl p-3.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-muted-foreground uppercase font-mono">
-                        Selected: {chosenTier.name} Tier
-                      </span>
-                      <div className="text-2xl font-black text-foreground mt-0.5">
-                        ${chosenTier.price.toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold text-emerald-400">{p.grossMarginPct}% Margin</span>
-                      <div className="text-[11px] text-muted-foreground font-mono">
-                        ~${chosenTier.monthlyEstimate}/mo financed
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3-Tier Mini Bar */}
-                  <div className="grid grid-cols-3 gap-1.5 mt-3 pt-3 border-t border-border/60">
-                    {p.tiers.map((t, idx) => (
-                      <div
-                        key={t.name}
-                        className={`text-center py-1.5 px-1 rounded text-[10px] font-mono transition-all ${
-                          idx === p.selectedTierIndex
-                            ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                            : 'bg-surface text-muted-foreground'
-                        }`}
-                      >
-                        <div className="uppercase text-[9px]">{t.name}</div>
-                        <div>${(t.price / 1000).toFixed(1)}k</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card Footer */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span>{p.sentDateText}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setActiveProposal(p);
-                      setSelectedTierInPreview(p.selectedTierIndex);
-                    }}
-                    className="text-xs h-7 px-3"
-                  >
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ======================== 3. DETAIL DRAWER / MODAL (Good / Better / Best) ======================== */}
+      {/* ======================== CLEAN ESTIMATE DETAILS MODAL ======================== */}
       {activeProposal && (
         <Modal
           isOpen={!!activeProposal}
           onClose={() => setActiveProposal(null)}
-          title={`Proposal ${activeProposal.estimateNumber} — ${activeProposal.customerName}`}
+          title={`Estimate ${activeProposal.estimateNumber} — ${activeProposal.customerName}`}
         >
           <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
-            {/* Header Meta */}
+            {/* Header Status & Top Actions */}
             <div className="bg-surface/80 border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-foreground">{activeProposal.title}</h3>
                   {activeProposal.isDraftedByElijah && (
                     <Badge variant="outline" className="text-indigo-400 border-indigo-500/30 text-[10px]">
-                      Drafted by Elijah AI
+                      <Bot className="w-3 h-3 mr-1" /> Drafted by Elijah AI
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {activeProposal.serviceAddress} · {activeProposal.customerPhone}
-                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span>{activeProposal.serviceAddress}</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
                 {activeProposal.status === 'ACCEPTED' ? (
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 py-1 px-3">
                     <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                    Accepted & Work Order Issued
+                    Accepted & Work Order Created
                   </Badge>
+                ) : activeProposal.status === 'DRAFT' ? (
+                  <Button
+                    size="sm"
+                    onClick={() => handleSendEstimate(activeProposal.id)}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1" />
+                    Send to Customer
+                  </Button>
                 ) : (
                   <Button
                     size="sm"
@@ -1280,118 +1028,213 @@ export default function EstimatesPage() {
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs h-8"
                   >
                     <Check className="w-3.5 h-3.5 mr-1" />
-                    Simulate Customer Sign
+                    Mark Accepted (Sign)
                   </Button>
                 )}
               </div>
             </div>
 
-            {/* 3-Tier Good / Better / Best Breakdown */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Choose or Recommend Tier (Good / Better / Best)
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {activeProposal.grossMarginPct}% Target Gross Margin
-                </span>
+            {/* Quote Type Toggle: Standard Quote (Default) vs Multi-Tier Options */}
+            {activeProposal.hasTiers && activeProposal.tiers && activeProposal.tiers.length > 0 && (
+              <div className="flex items-center justify-between bg-surface border border-border rounded-lg p-1 text-xs">
+                <button
+                  onClick={() => setActiveModalTab('STANDARD')}
+                  className={`flex-1 py-1.5 px-3 rounded-md font-medium transition-colors ${
+                    activeModalTab === 'STANDARD'
+                      ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Standard Flat Quote (${activeProposal.amount.toLocaleString()})
+                </button>
+                <button
+                  onClick={() => setActiveModalTab('TIERS')}
+                  className={`flex-1 py-1.5 px-3 rounded-md font-medium transition-colors ${
+                    activeModalTab === 'TIERS'
+                      ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  3-Tier Options (Good / Better / Best)
+                </button>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {activeProposal.tiers.map((tier, idx) => {
-                  const isSelected = idx === selectedTierInPreview;
-                  return (
-                    <div
-                      key={tier.name}
-                      onClick={() => setSelectedTierInPreview(idx)}
-                      className={`relative rounded-xl border p-4 cursor-pointer transition-all flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-md'
-                          : 'border-border/80 bg-surface/50 hover:border-border'
-                      }`}
-                    >
-                      {tier.isRecommended && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5 rounded-full shadow-sm">
-                          Most Popular
-                        </div>
-                      )}
+            {/* TAB 1: STANDARD FLAT QUOTE (Simple, Real-World contractor quote) */}
+            {(!activeProposal.hasTiers || activeModalTab === 'STANDARD') && (
+              <div className="space-y-4">
+                {/* Customer & Rep Meta Box */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-background/60 border border-border/80 rounded-xl p-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-mono">Customer</span>
+                    <div className="font-semibold text-foreground mt-0.5">{activeProposal.customerName}</div>
+                    <div className="text-muted-foreground">{activeProposal.customerPhone}</div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-mono">Service Trade</span>
+                    <div className="font-semibold text-foreground mt-0.5">{activeProposal.tradeType}</div>
+                    <div className="text-muted-foreground">Standard Job</div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-mono">Assigned Rep</span>
+                    <div className="font-semibold text-foreground mt-0.5">{activeProposal.repName}</div>
+                    <div className="text-muted-foreground">Field Tech</div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-mono">Estimate Status</span>
+                    <div className="font-semibold text-foreground mt-0.5">{activeProposal.status}</div>
+                    <div className="text-muted-foreground">{activeProposal.expiryText}</div>
+                  </div>
+                </div>
 
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-extrabold uppercase font-mono text-muted-foreground">
-                            {tier.name}
-                          </span>
-                          {isSelected && <Check className="w-4 h-4 text-primary" />}
-                        </div>
+                {/* Scope of Work / Line Items */}
+                <div className="border border-border/80 rounded-xl p-4 bg-surface/50">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                    Scope of Work & Deliverables
+                  </h4>
+                  <ul className="space-y-2 text-xs text-foreground">
+                    {(activeProposal.scopeItems || [
+                      'Complete inspection, diagnosis, and removal of worn components',
+                      'Supply and professional installation of approved hardware & fittings',
+                      'Code compliance verification and safety leak/pressure testing',
+                      'Manufacturer warranty registration and clean site guarantee',
+                    ]).map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        <span className="text-muted-foreground">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-                        <div className="mt-2 text-xl font-black text-foreground">
-                          ${tier.price.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-emerald-400 font-mono font-medium">
-                          or ${tier.monthlyEstimate}/mo financed
-                        </div>
-
-                        <p className="mt-2 text-xs font-semibold text-foreground/90 line-clamp-2">
-                          {tier.label}
-                        </p>
-
-                        <div className="mt-2 text-[10px] text-muted-foreground font-mono bg-background/60 p-1.5 rounded">
-                          🛡️ {tier.warrantyYears}
-                        </div>
-
-                        <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-                          {tier.features.map((f, i) => (
-                            <li key={i} className="flex items-start gap-1.5 text-[11px]">
-                              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                              <span>{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-border/50">
-                        <Button
-                          size="sm"
-                          variant={isSelected ? 'primary' : 'outline'}
-                          className="w-full text-xs h-7"
-                        >
-                          {isSelected ? 'Selected Tier' : `Select ${tier.name}`}
-                        </Button>
-                      </div>
+                {/* Total Price Card */}
+                <div className="border border-border/80 rounded-xl p-4 bg-surface/90 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Total Estimated Investment
+                    </span>
+                    <div className="text-3xl font-extrabold text-foreground mt-1">
+                      ${activeProposal.amount.toLocaleString()}
                     </div>
-                  );
-                })}
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Includes all labor, equipment, permits, and warranty coverage.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+                      Standard Flat Rate
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* TAB 2: OPTIONAL TIERED GOOD / BETTER / BEST BREAKDOWN (Only when requested) */}
+            {activeProposal.hasTiers && activeModalTab === 'TIERS' && activeProposal.tiers && (
+              <div className="space-y-4">
+                <div className="text-xs text-muted-foreground">
+                  Optional multi-tier equipment comparisons allow customers to select between standard, high-efficiency, and premium systems.
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {activeProposal.tiers.map((tier, idx) => {
+                    const isSelected = idx === selectedTierInPreview;
+                    return (
+                      <div
+                        key={tier.name}
+                        onClick={() => setSelectedTierInPreview(idx)}
+                        className={`relative rounded-xl border p-4 cursor-pointer transition-all flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-md'
+                            : 'border-border/80 bg-surface/50 hover:border-border'
+                        }`}
+                      >
+                        {tier.isRecommended && (
+                          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5 rounded-full shadow-sm">
+                            Most Popular
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold uppercase font-mono text-muted-foreground">
+                              {tier.name} Tier
+                            </span>
+                            {isSelected && <Check className="w-4 h-4 text-primary" />}
+                          </div>
+
+                          <div className="mt-2 text-2xl font-black text-foreground">
+                            ${tier.price.toLocaleString()}
+                          </div>
+                          {tier.monthlyEstimate && (
+                            <div className="text-xs text-emerald-400 font-mono font-medium">
+                              ~${tier.monthlyEstimate}/mo financed
+                            </div>
+                          )}
+
+                          <p className="mt-2 text-xs font-semibold text-foreground/90 line-clamp-2">{tier.label}</p>
+
+                          {tier.warrantyYears && (
+                            <div className="mt-2 text-[10px] text-muted-foreground font-mono bg-background/60 p-1.5 rounded">
+                              🛡️ {tier.warrantyYears}
+                            </div>
+                          )}
+
+                          <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                            {tier.features.map((f, i) => (
+                              <li key={i} className="flex items-start gap-1.5 text-[11px]">
+                                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                                <span>{f}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-border/50">
+                          <Button
+                            size="sm"
+                            variant={isSelected ? 'primary' : 'outline'}
+                            className="w-full text-xs h-7"
+                          >
+                            {isSelected ? 'Active Selection' : `Select ${tier.name}`}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Autonomous Follow-up Timeline */}
             <div className="border border-border/80 rounded-xl p-4 bg-surface/50">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground mb-3">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                  Elijah Autonomous Follow-Up Cadence
+                  Elijah Autonomous Follow-Up Schedule
                 </span>
                 <span className="text-muted-foreground font-mono text-[11px]">
-                  Recipe: Unsold estimate follow-up
+                  Recipe: Unsold Estimate Cadence
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                 <div className="p-2.5 rounded bg-background/80 border border-border/60">
                   <div className="text-[10px] font-mono text-emerald-400 font-semibold">DAY 0 — SENT</div>
-                  <div className="text-muted-foreground mt-0.5">Proposal SMS & Email with e-sign link</div>
+                  <div className="text-muted-foreground mt-0.5 text-[11px]">Proposal SMS & Email with e-sign link</div>
                 </div>
                 <div className="p-2.5 rounded bg-background/80 border border-border/60">
                   <div className="text-[10px] font-mono text-primary font-semibold">DAY 2 — SMS CHECK</div>
-                  <div className="text-muted-foreground mt-0.5">&quot;Any questions about {activeProposal.tradeType}?&quot;</div>
+                  <div className="text-muted-foreground mt-0.5 text-[11px]">&quot;Any questions about {activeProposal.tradeType}?&quot;</div>
                 </div>
                 <div className="p-2.5 rounded bg-background/80 border border-border/60">
                   <div className="text-[10px] font-mono text-muted-foreground font-semibold">DAY 5 — CALL TASK</div>
-                  <div className="text-muted-foreground mt-0.5">Assigned to {activeProposal.repName}</div>
+                  <div className="text-muted-foreground mt-0.5 text-[11px]">Assigned to {activeProposal.repName}</div>
                 </div>
                 <div className="p-2.5 rounded bg-background/80 border border-border/60">
                   <div className="text-[10px] font-mono text-muted-foreground font-semibold">DAY 7 — RECAP</div>
-                  <div className="text-muted-foreground mt-0.5">Options & financing recap</div>
+                  <div className="text-muted-foreground mt-0.5 text-[11px]">Final reminder & financing recap</div>
                 </div>
               </div>
             </div>
@@ -1403,15 +1246,15 @@ export default function EstimatesPage() {
                 size="sm"
                 onClick={() => {
                   navigator.clipboard.writeText(
-                    `https://desertair.com/estimate/${activeProposal.estimateNumber}?token=demo`
+                    `https://app.elijah.ai/estimate/${activeProposal.estimateNumber}?token=demo`
                   );
-                  setToastMessage('Proposal link copied to clipboard!');
+                  setToastMessage('Public proposal link copied to clipboard!');
                   setTimeout(() => setToastMessage(null), 3000);
                 }}
                 className="text-xs"
               >
                 <Share2 className="w-3.5 h-3.5 mr-1" />
-                Copy Proposal Link
+                Copy Public Link
               </Button>
 
               <div className="flex items-center gap-2">
@@ -1423,7 +1266,7 @@ export default function EstimatesPage() {
                   className="text-xs"
                 >
                   <Send className="w-3.5 h-3.5 mr-1 text-primary" />
-                  {isSendingSms ? 'Sending...' : 'Send SMS Follow-up Now'}
+                  {isSendingSms ? 'Sending...' : 'Send SMS Reminder'}
                 </Button>
                 <Button size="sm" onClick={() => setActiveProposal(null)} className="text-xs">
                   Close
@@ -1434,7 +1277,7 @@ export default function EstimatesPage() {
         </Modal>
       )}
 
-      {/* ======================== 4. CREATE NEW ESTIMATE MODAL ======================== */}
+      {/* ======================== CLEAN & SIMPLE CREATE ESTIMATE MODAL ======================== */}
       {isCreateOpen && (
         <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Estimate">
           <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -1451,7 +1294,7 @@ export default function EstimatesPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-foreground">Customer Phone (SMS E-sign)</label>
+              <label className="text-xs font-semibold text-foreground">Customer Phone (for SMS E-Sign)</label>
               <input
                 type="text"
                 value={newCustPhone}
@@ -1475,34 +1318,51 @@ export default function EstimatesPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-foreground">Base Amount ($)</label>
+                <label className="text-xs font-semibold text-foreground">Total Estimate Amount ($)</label>
                 <input
                   type="number"
+                  required
                   value={newAmount}
                   onChange={(e) => setNewAmount(e.target.value)}
-                  placeholder="e.g. 11500"
+                  placeholder="e.g. 2450"
                   className="w-full mt-1 bg-surface border border-border rounded-lg p-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-foreground">Estimate Title / Scope</label>
+              <label className="text-xs font-semibold text-foreground">Service Title / Scope of Work</label>
               <input
                 type="text"
                 required
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="e.g. 5-Ton Heat Pump Replacement"
+                placeholder="e.g. 50-Gallon Gas Water Heater Replacement"
                 className="w-full mt-1 bg-surface border border-border rounded-lg p-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
               />
             </div>
 
-            <div className="pt-2 flex justify-end gap-2">
+            {/* Optional Tier Toggle */}
+            <div className="pt-1 flex items-center justify-between border-t border-border/60">
+              <div>
+                <div className="text-xs font-medium text-foreground">Multi-Tier Comparison (Optional)</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Include Good, Better, Best options (for equipment replacement quotes)
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={enableTiers}
+                onChange={(e) => setEnableTiers(e.target.checked)}
+                className="w-4 h-4 rounded text-primary focus:ring-primary border-border bg-surface"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-border/60">
               <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground font-semibold">
                 Draft Estimate
               </Button>
             </div>
