@@ -72,10 +72,11 @@ export default function BrandedCustomerBookingPage() {
 
   // Load company branding dynamically based on /book/[slug]
   useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
     const fetchCompany = async () => {
       setIsLoadingCompany(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/v1/jobs/company/${companySlug}`);
+        const res = await fetch(`${apiUrl}/jobs/company/${companySlug}`);
         const data = await res.json();
         if (data.success && data.data) {
           setCompany(data.data);
@@ -112,7 +113,8 @@ export default function BrandedCustomerBookingPage() {
     setError(null);
 
     try {
-      const res = await fetch('http://localhost:5000/api/v1/jobs/public-request', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const res = await fetch(`${apiUrl}/jobs/public-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

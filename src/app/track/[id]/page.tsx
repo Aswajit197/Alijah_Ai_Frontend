@@ -70,7 +70,8 @@ export default function PublicJobTrackingPage() {
     if (isManual) setIsRefreshing(true);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/jobs/public-track/${jobId}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const res = await fetch(`${apiUrl}/jobs/public-track/${jobId}`);
       const data = await res.json();
 
       if (data.success && data.data) {
@@ -98,7 +99,8 @@ export default function PublicJobTrackingPage() {
     // Connect to Server-Sent Events (SSE) Stream
     const setupSSE = () => {
       try {
-        const streamUrl = `http://localhost:5000/api/v1/jobs/public-track/${jobId}/stream`;
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+        const streamUrl = `${apiUrl}/jobs/public-track/${jobId}/stream`;
         eventSource = new EventSource(streamUrl);
 
         eventSource.onopen = () => {

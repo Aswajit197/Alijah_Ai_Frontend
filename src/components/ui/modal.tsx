@@ -11,6 +11,7 @@ interface ModalProps {
   description?: string;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  className?: string;
 }
 
 export function Modal({
@@ -20,6 +21,7 @@ export function Modal({
   description,
   children,
   maxWidth = 'md',
+  className,
 }: ModalProps) {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -57,7 +59,8 @@ export function Modal({
       <div
         className={cn(
           'relative w-full bg-surface-elevated border border-border rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150',
-          maxWidths[maxWidth]
+          maxWidths[maxWidth],
+          className
         )}
       >
         <div className="flex items-start justify-between p-6 border-b border-border">

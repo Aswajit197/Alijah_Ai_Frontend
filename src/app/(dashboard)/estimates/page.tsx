@@ -1352,7 +1352,7 @@ export default function EstimatesPage() {
                       <div className="mt-4 pt-3 border-t border-border/50">
                         <Button
                           size="sm"
-                          variant={isSelected ? 'default' : 'outline'}
+                          variant={isSelected ? 'primary' : 'outline'}
                           className="w-full text-xs h-7"
                         >
                           {isSelected ? 'Selected Tier' : `Select ${tier.name}`}

@@ -76,7 +76,7 @@ export interface Conversation {
 	transcript: TranscriptTurn[];
 }
 
-export function formatInboxTimestamp(dateInput: string | Date | number): string {
+function formatInboxTimestamp(dateInput: string | Date | number): string {
 	if (!dateInput) return "";
 	const date = new Date(dateInput);
 	if (isNaN(date.getTime())) return "";
@@ -102,7 +102,7 @@ export function formatInboxTimestamp(dateInput: string | Date | number): string 
 	}
 }
 
-export function parseTranscriptTurns(rawTranscript: string, fallbackCustomerName: string): TranscriptTurn[] {
+function parseTranscriptTurns(rawTranscript: string, fallbackCustomerName: string): TranscriptTurn[] {
 	if (!rawTranscript) return [];
 	const lines = rawTranscript.split("\n").filter((l) => l.trim().length > 0);
 

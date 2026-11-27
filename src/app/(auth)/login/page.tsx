@@ -12,7 +12,6 @@ import {
   Sparkles,
   Server,
   Building2,
-  KeyRound,
   UserCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,8 +27,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('amohapatra@pods365.com');
+  const [password, setPassword] = useState('password123');
   const [authPhase, setAuthPhase] = useState<AuthPhase>('idle');
   const [authStepText, setAuthStepText] = useState('Authenticating credentials...');
   const [userName, setUserName] = useState('');
@@ -40,14 +39,12 @@ function LoginForm() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotIsSubmitting, setForgotIsSubmitting] = useState(false);
   const [forgotSuccessMessage, setForgotSuccessMessage] = useState<string | null>(null);
-  const [forgotDevResetLink, setForgotDevResetLink] = useState<string | null>(null);
   const [forgotError, setForgotError] = useState<string | null>(null);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError(null);
     setForgotSuccessMessage(null);
-    setForgotDevResetLink(null);
 
     if (!forgotEmail) {
       setForgotError('Please enter your work email.');
@@ -66,9 +63,8 @@ function LoginForm() {
       });
 
       setForgotSuccessMessage(
-        `Password reset link sent to ${res.email}. Check your email or use the Dev Mode direct link below.`
+        `A password reset link has been sent to ${res.email}. Please check your email inbox.`
       );
-      setForgotDevResetLink(res.resetLink);
     } catch (err: any) {
       setForgotError(err.message || 'Failed to request password reset.');
     } finally {
@@ -125,12 +121,6 @@ function LoginForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     executeLogin(email, password);
-  };
-
-  const handleQuickLogin = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    executeLogin(demoEmail, 'password123');
   };
 
   return (
@@ -207,29 +197,9 @@ function LoginForm() {
                 )}
 
                 {forgotSuccessMessage && (
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>{forgotSuccessMessage}</span>
-                    </div>
-
-                    {forgotDevResetLink && (
-                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Dev Mode Quick Reset Link</span>
-                        </div>
-                        <p className="text-[11px] text-slate-300">
-                          Click below to reset your password immediately without checking email:
-                        </p>
-                        <a
-                          href={forgotDevResetLink}
-                          className="block p-2 rounded-xl bg-surface border border-border text-xs text-ai font-mono break-all hover:border-ai transition-colors"
-                        >
-                          {forgotDevResetLink} →
-                        </a>
-                      </div>
-                    )}
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{forgotSuccessMessage}</span>
                   </div>
                 )}
 
@@ -263,7 +233,6 @@ function LoginForm() {
                       setShowForgotPassword(false);
                       setForgotError(null);
                       setForgotSuccessMessage(null);
-                      setForgotDevResetLink(null);
                     }}
                     className="w-full text-center text-xs text-muted hover:text-white transition-colors py-1.5"
                   >
@@ -380,49 +349,76 @@ function LoginForm() {
               </div>
             )}
 
-            {/* 1-Click Demo Quick Logins */}
-            {authPhase === 'idle' && (
+            {/* Quick Demo Role Switcher */}
+            {authPhase === 'idle' && !showForgotPassword && (
               <div className="mt-5 pt-4 border-t border-border/60 space-y-2">
                 <div className="flex items-center justify-between text-[10px] text-muted font-semibold uppercase tracking-wider">
-                  <span className="flex items-center gap-1">
-                    <KeyRound className="w-3 h-3 text-primary" />
-                    <span>Demo 1-Click Sign In:</span>
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-ai" />
+                    <span>Demo Role Switcher</span>
                   </span>
-                  <span className="text-[9px] text-slate-500">Auto-authenticates</span>
+                  <span className="text-[9px] text-slate-500">1-Click Credentials</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                <div className="grid grid-cols-3 gap-1.5">
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin('owner@pashupat.cloud')}
-                    className="p-1.5 rounded-xl bg-surface-elevated/70 border border-border/80 hover:border-primary/50 text-slate-300 hover:text-white flex items-center gap-1.5 transition-all text-left"
+                    onClick={() => {
+                      setEmail('amohapatra@pods365.com');
+                      setPassword('password123');
+                      setError(null);
+                    }}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      email === 'amohapatra@pods365.com'
+                        ? 'bg-primary/20 border-primary text-white shadow-sm ring-1 ring-primary/40'
+                        : 'bg-surface-elevated/70 border-border/80 hover:border-border-hover text-slate-300 hover:text-white'
+                    }`}
                   >
-                    <span className="text-xs">👑</span>
-                    <span className="truncate font-medium">Business Owner</span>
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <span>👑</span>
+                      <span className="truncate">Owner</span>
+                    </div>
+                    <p className="text-[9px] text-muted truncate mt-0.5 font-mono">amohapatra</p>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin('office@pashupat.cloud')}
-                    className="p-1.5 rounded-xl bg-surface-elevated/70 border border-border/80 hover:border-primary/50 text-slate-300 hover:text-white flex items-center gap-1.5 transition-all text-left"
+                    onClick={() => {
+                      setEmail('tekchand@pods365.com');
+                      setPassword('password123');
+                      setError(null);
+                    }}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      email === 'tekchand@pods365.com'
+                        ? 'bg-primary/20 border-primary text-white shadow-sm ring-1 ring-primary/40'
+                        : 'bg-surface-elevated/70 border-border/80 hover:border-border-hover text-slate-300 hover:text-white'
+                    }`}
                   >
-                    <span className="text-xs">📋</span>
-                    <span className="truncate font-medium">Office Manager</span>
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <span>⚡</span>
+                      <span className="truncate">Dispatcher</span>
+                    </div>
+                    <p className="text-[9px] text-muted truncate mt-0.5 font-mono">tekchand</p>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin('dispatcher@pashupat.cloud')}
-                    className="p-1.5 rounded-xl bg-surface-elevated/70 border border-border/80 hover:border-primary/50 text-slate-300 hover:text-white flex items-center gap-1.5 transition-all text-left"
+                    onClick={() => {
+                      setEmail('aswajit.cool123@pods365.com');
+                      setPassword('password123');
+                      setError(null);
+                    }}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      email === 'aswajit.cool123@pods365.com'
+                        ? 'bg-primary/20 border-primary text-white shadow-sm ring-1 ring-primary/40'
+                        : 'bg-surface-elevated/70 border-border/80 hover:border-border-hover text-slate-300 hover:text-white'
+                    }`}
                   >
-                    <span className="text-xs">⚡</span>
-                    <span className="truncate font-medium">Dispatcher</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('technician@pashupat.cloud')}
-                    className="p-1.5 rounded-xl bg-surface-elevated/70 border border-border/80 hover:border-primary/50 text-slate-300 hover:text-white flex items-center gap-1.5 transition-all text-left"
-                  >
-                    <span className="text-xs">🔧</span>
-                    <span className="truncate font-medium">Field Technician</span>
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <span>🔧</span>
+                      <span className="truncate">Technician</span>
+                    </div>
+                    <p className="text-[9px] text-muted truncate mt-0.5 font-mono">aswajit</p>
                   </button>
                 </div>
               </div>
