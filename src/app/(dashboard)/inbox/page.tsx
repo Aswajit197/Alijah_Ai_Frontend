@@ -1108,7 +1108,16 @@ export default function InboxPage() {
 							<div className="space-y-2 pt-2 border-t border-border">
 								<h4 className="text-[11px] font-bold text-muted uppercase tracking-wider">1-Click Operations</h4>
 
-								<Link href="/schedule" className="block">
+								<Link
+									href={
+										activeConv.jobId
+											? `/schedule?jobId=${activeConv.jobId}`
+											: activeConv.jobNumber
+											? `/schedule?jobNumber=${activeConv.jobNumber}`
+											: "/schedule"
+									}
+									className="block"
+								>
 									<Button variant="outline" size="sm" className="w-full justify-between text-xs h-8">
 										<span className="flex items-center gap-1.5">
 											<Calendar className="w-3.5 h-3.5 text-primary" />
@@ -1118,7 +1127,10 @@ export default function InboxPage() {
 									</Button>
 								</Link>
 
-								<Link href="/customers" className="block">
+								<Link
+									href={`/customers?search=${encodeURIComponent(activeConv.customerPhone || activeConv.customerName || "")}`}
+									className="block"
+								>
 									<Button variant="outline" size="sm" className="w-full justify-between text-xs h-8">
 										<span className="flex items-center gap-1.5">
 											<User className="w-3.5 h-3.5 text-sky-400" />

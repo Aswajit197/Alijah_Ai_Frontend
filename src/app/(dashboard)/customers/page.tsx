@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Users,
   UserPlus,
@@ -28,6 +28,7 @@ import {
   User,
   Flame,
   Pencil,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,13 +81,23 @@ interface Customer {
   createdAt: string;
 }
 
-export default function CustomersPage() {
+function CustomersContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchQ = searchParams?.get('search') || searchParams?.get('q') || '';
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchQ);
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'COMMERCIAL' | 'RESIDENTIAL'>('ALL');
   const [error, setError] = useState<string | null>(null);
+  const autoOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (searchQ && search !== searchQ) {
+      setSearch(searchQ);
+    }
+  }, [searchQ]);
 
   // Drawer & Modal states
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -144,6 +155,10 @@ export default function CustomersPage() {
       const url = `/customers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const data = await apiRequest<Customer[]>(url);
       setCustomers(data);
+      if (searchQ && data.length > 0 && !autoOpenedRef.current) {
+        autoOpenedRef.current = true;
+        openCustomerDetail(data[0]);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load customers');
     } finally {
@@ -1412,5 +1427,20 @@ export default function CustomersPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-full w-full flex items-center justify-center p-8 text-xs text-muted">
+          <Loader2 className="w-5 h-5 animate-spin mr-2 text-primary" />
+          Loading customer CRM vault...
+        </div>
+      }
+    >
+      <CustomersContent />
+    </Suspense>
   );
 }
