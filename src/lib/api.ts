@@ -48,10 +48,31 @@ export async function apiRequest<T = any>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    ...fetchOptions,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${endpoint}`, {
+      ...fetchOptions,
+      headers,
+      signal: fetchOptions.signal || controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new ApiError(
+        `Connection timed out: Server at ${baseUrl} did not respond within 6s. Check if your backend is running.`,
+        504
+      );
+    }
+    throw new ApiError(
+      `Network connection failed: Cannot reach backend at ${baseUrl}. Ensure your backend server is running.`,
+      503
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const data = await response.json().catch(() => ({}));
 
