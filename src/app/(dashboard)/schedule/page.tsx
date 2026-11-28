@@ -572,8 +572,13 @@ function ScheduleContent() {
   }, [focusedJobId]);
 
   // Slices
-  const unscheduledJobs = jobs.filter((j) => j.status === 'UNSCHEDULED');
-  const scheduledJobs = jobs.filter((j) => j.status !== 'UNSCHEDULED');
+  // A job belongs in the Unassigned Triage Queue if it has no technician assigned OR status is UNSCHEDULED,
+  // and is not already completed or cancelled.
+  const unscheduledJobs = jobs.filter(
+    (j) => (!j.technicianId || j.status === 'UNSCHEDULED') && j.status !== 'COMPLETED' && j.status !== 'CANCELLED'
+  );
+  // Scheduled jobs for swimlanes require an assigned technician
+  const scheduledJobs = jobs.filter((j) => Boolean(j.technicianId) && j.status !== 'UNSCHEDULED');
 
   // Sorted technicians:
   // 1. Technicians with assigned jobs on this date show FIRST!
@@ -786,6 +791,12 @@ function ScheduleContent() {
                     <p className="text-[11px] text-muted mt-1 truncate">
                       {j.customer?.companyName || j.customer?.name} · {j.serviceAddress || 'No address'}
                     </p>
+                    {j.scheduledDate && (
+                      <p className="text-[10px] text-amber-300/90 font-mono mt-1.5 bg-amber-500/15 px-2 py-0.5 rounded inline-block">
+                        Target: {new Date(j.scheduledDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        {j.scheduledStart && ` · ${new Date(j.scheduledStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      </p>
+                    )}
                   </div>
 
                   <Button
@@ -976,6 +987,11 @@ function ScheduleContent() {
                               <h4 className="font-bold text-white text-xs mt-1.5 line-clamp-2">
                                 {j.title}
                               </h4>
+                              {j.scheduledDate && new Date(j.scheduledDate).toISOString().split('T')[0] !== selectedDate && (
+                                <span className="inline-block mt-1 text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono font-medium">
+                                  Active from {new Date(j.scheduledDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
                             </div>
                             {getStatusBadge(j.status)}
                           </div>

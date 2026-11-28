@@ -50,7 +50,7 @@ export function NeedsAttentionCard({ roleSlug = "owner" }: NeedsAttentionCardPro
 							context: `${job.reportedIssue || "Service visit booked via 24/7 AI Receptionist"} — Customer: ${job.customer?.name || "Customer"} (${job.serviceAddress || "Address on file"})`,
 							recommendedAction: "Assign available technician from the Schedule & Dispatch swimlanes.",
 							tags: [job.priority || "Standard", "Dispatch Required"],
-							actionHref: "/schedule",
+							actionHref: `/schedule?jobId=${job.id}`,
 							actionLabel: "Assign Tech",
 						});
 					} else if (job.notes && job.notes.includes("[ESCALATION]")) {
@@ -61,7 +61,7 @@ export function NeedsAttentionCard({ roleSlug = "owner" }: NeedsAttentionCardPro
 							context: job.notes,
 							recommendedAction: "Reassign to secondary technician or adjust appointment window.",
 							tags: ["Declined", "Reassign"],
-							actionHref: "/schedule",
+							actionHref: `/schedule?jobId=${job.id}`,
 							actionLabel: "Reassign",
 						});
 					}
